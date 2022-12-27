@@ -183,13 +183,31 @@ GSETTINGS_SCHEMA_DIR=$HOME/.local/share/gnome-shell/extensions/paperwm@hedning:m
 
 ### Winprops
 
-It's possible to create simple rules for placing new windows. Currently most useful when a window should be placed in the scratch layer automatically. An example, best placed in the `init` part of `user.js`:
+It's possible to set window properties using simple rules that will be applied when placing new windows. Properties can applied to windows identified by their `wm_class` or `title`.  The following properties are currently supported:
+
+Property              | Input type                          | Input example(s) | Description
+----------------------|-------------------------------------|------------------|------------------
+`scratch_layer`       | boolean                             | `true`, `false`  | if `true` window will be placed on the scratch layer.
+`preferredWidth`      | _width in pixels_ (integer)         | `450`, `1024`    | resizes the window width (pixels) of the window when it's created. </br>_Note<sup>1</sup>: property not applicable to windows on scratch layer._</br>_Note<sup>2</sup>: `preferredWith` takes precedence over `preferredWidthRatio`._
+`preferredWidthRatio` | _ratio value_ (double)              | `0.5`, `0.75`    | resizes the window width to the ratio of the input to the available screen width.</br>_Note<sup>1</sup>: property not applicable to windows on scratch layer._
+
+Below is a few examples of setting window properties for _Spotify_ and _Alacritty_.  The below examples are best placed in the `init` part of `user.js`:
 
 ```javascript
     Tiling.defwinprop({
         wm_class: "Spotify",
         title: "Window Title",
         scratch_layer: true,
+    });
+
+    Tiling.defwinprop({
+        wm_class: "Gnome-terminal",
+        preferredWidth: 650,
+    });
+
+    Tiling.defwinprop({
+        wm_class: /alacritty/i,
+        preferredWidthRatio: 0.5,
     });
 ```
 

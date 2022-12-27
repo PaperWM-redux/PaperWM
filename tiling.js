@@ -342,6 +342,16 @@ var Space = class Space extends Array {
 
             let resizable = !mw.fullscreen &&
                 mw.get_maximized() !== Meta.MaximizeFlags.BOTH;
+            
+            if (mw.preferredWidthRatio) {
+                let availableWidth = space.workArea().width - prefs.horizontal_margin*2 - prefs.window_gap;
+                targetWidth = Math.floor(availableWidth * Math.min(mw.preferredWidthRatio, 1.0));
+                delete mw.preferredWidthRatio;
+            }
+            if (mw.preferredWidth) {
+                targetWidth = mw.preferredWidth;
+                delete mw.preferredWidth;
+            }
 
             if (resizable) {
                 const hasNewTarget = mw._targetWidth !== targetWidth || mw._targetHeight !== targetHeight;
@@ -401,7 +411,6 @@ var Space = class Space extends Array {
         }
         return [targetWidth, widthChanged || heightChanged, y];
     }
-
 
     layout(animate = true, options={}) {
         // Guard against recursively calling layout
@@ -2535,6 +2544,10 @@ function insertWindow(metaWindow, {existing}) {
             if (winprop.focus) {
                 Main.activateWindow(metaWindow);
             }
+
+            // pass winprop properties to metaWindow
+            metaWindow.preferredWidth = winprop.preferredWidth;
+            metaWindow.preferredWidthRatio = winprop.preferredWidthRatio;
         }
 
         if (addToScratch) {
@@ -3096,14 +3109,11 @@ function resizeWDec(metaWindow) {
     metaWindow.move_resize_frame(true, targetX, frame.y, targetWidth, frame.height);
 }
 
-function cycleWindowWidth(metaWindow) {
+function getCycleWindowWidths(metaWindow) {
     let steps = prefs.cycle_width_steps;
-
     let frame = metaWindow.get_frame_rect();
-    let monitor = Main.layoutManager.monitors[metaWindow.get_monitor()];
     let space = spaces.spaceOfWindow(metaWindow);
     let workArea = space.workArea();
-    workArea.x += space.monitor.x;
 
     if (steps[0] <= 1) {
         // Steps are specifed as ratios -> convert to pixels
@@ -3112,8 +3122,17 @@ function cycleWindowWidth(metaWindow) {
         steps = steps.map(x => Math.floor(x*availableWidth));
     }
 
+   return steps;
+}
+
+function cycleWindowWidth(metaWindow) {
+    let frame = metaWindow.get_frame_rect();
+    let space = spaces.spaceOfWindow(metaWindow);
+    let workArea = space.workArea();
+    workArea.x += space.monitor.x;
+
     // 10px slack to avoid locking up windows that only resize in increments > 1px
-    let targetWidth = Math.min(utils.findNext(frame.width, steps, sizeSlack), workArea.width);
+    let targetWidth = Math.min(utils.findNext(frame.width, getCycleWindowWidths(metaWindow), sizeSlack), workArea.width);
     let targetX = frame.x;
 
     if (Scratch.isScratchWindow(metaWindow)) {
