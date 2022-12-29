@@ -2562,7 +2562,7 @@ function insertWindow(metaWindow, {existing}) {
             connectSizeChanged();
             Scratch.makeScratch(metaWindow);
             if (scratchIsFocused) {
-               activateWindowAfterTransitions(metaWindow);
+               activateWindowAfterRendered(actor, metaWindow);
             }
             return;
         }
@@ -3212,15 +3212,14 @@ function activateLastWindow(mw, space) {
 }
 
 /**
- * Calls `activateWindow` only after (currently in-flight) transitions are complete.
+ * Calls `activateWindow` only after an actor is visible and rendered on the stage.
  * The standard `Main.activateWindow(mw)` should be used in general, but this method
- * may be requried under certain use cases to avoid gnome/mutter issues (See 
- * https://github.com/paperwm/PaperWM/issues/448 for an example where this is required).
- * 
- * @param {MetaWindow} mw 
+ * may be requried under certain use cases (such as activating a floating window 
+ * programmatically before it's rendered, see 
+ * https://github.com/paperwm/PaperWM/issues/448 for details).
  */
-function activateWindowAfterTransitions(mw) {
-    signals.connectOneShot(actor,'transitions-completed', () => {
+function activateWindowAfterRendered(actor, mw) {
+    signals.connectOneShot(actor,'show', () => {
         Main.activateWindow(mw);
     });
 }
