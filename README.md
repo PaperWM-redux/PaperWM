@@ -1,4 +1,18 @@
-# PaperWM #
+# PaperWM (redux) #
+
+---
+
+<em>**NOTE:** This is a fork of [PaperWM](https://github.com/paperwm/PaperWM).  This fork is focused on accelerating [PaperWM](https://github.com/paperwm/PaperWM) development and aims to always support the latest Gnome release(s).
+
+I'm also committed to implementing fix(s) and new features for PaperWM now and in the future.
+
+Please note that big I'm a fan of, and 100% support, the PaperWM community!  Every fix/feature developed here will **ALWAYS** be provided upstream as pull requests.
+
+You can always view upstream submitted [issues and pull requests here](https://github.com/paperwm/PaperWM/issues?q=author%3Ajtaala+).</em>
+
+---
+
+<div style="height:2em"></div>
 
 [![project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://paperwm.zulipchat.com)
 
