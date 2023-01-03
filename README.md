@@ -2,11 +2,11 @@
 
 ---
 
-<em>**NOTE:** This is a fork of [PaperWM](https://github.com/paperwm/PaperWM).  This fork is focused on accelerating [PaperWM](https://github.com/paperwm/PaperWM) development and aims to always support the latest Gnome release(s).
+<em>**Note:** this is a fork of [PaperWM](https://github.com/paperwm/PaperWM) that's focused on accelerating development of PaperWM and aims to continue supporting the latest Gnome release(s) by testing and implementing fixes (hopefully quickly!), and implementing new features, now and in the future.
 
-I'm also committed to implementing fix(s) and new features for PaperWM now and in the future.
+Note this fork 100% supports the PaperWM community!  Every fix/new-feature developed here will **ALWAYS** be provided upstream as pull requests.  Similarly, issues will also be submitted upstream.
 
-Please note that big I'm a fan of, and 100% support, the PaperWM community!  Every fix/feature developed here will **ALWAYS** be provided upstream as pull requests.
+Upstream submitted pull requests will continually be merged into this forks's `develop` branch, which may be useful for users that want to use/test this fork for their own use. 
 
 You can always view upstream submitted [issues and pull requests here](https://github.com/paperwm/PaperWM/issues?q=author%3Ajtaala+).</em>
 
