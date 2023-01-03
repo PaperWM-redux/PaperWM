@@ -350,6 +350,4 @@ function defwinprop(spec) {
     } else {
         winprops.push(spec);
     }
-
-    winprops.push(spec);
 }
