@@ -30,22 +30,22 @@ We hang out on [zulip](https://paperwm.zulipchat.com).
 
 ## Installation
 
-Clone the repo and check out the branch supporting the Gnome Shell version you're running.
+<!---Clone the repo and check out the branch supporting the Gnome Shell version you're running.
 
 - 43 (experimental, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
 - 42: https://github.com/paperwm/PaperWM/tree/gnome-42
 - 40: https://github.com/paperwm/PaperWM/tree/gnome-40
 - 3.28-3.38: https://github.com/paperwm/PaperWM/releases/tag/38.2
+-->
 
-
-Then run the [`install.sh`](https://github.com/paperwm/PaperWM/blob/master/install.sh) script
-from the repository. The installer will create a link to the repo in
+Clone the repo and then run the [`install.sh`](https://github.com/PaperWM-redux/PaperWM/blob/develop/install.sh) script from the repository. The installer will create a link to the repo in
 `$XDG_DATA_HOME/gnome-shell/extensions/`. It will then ask if you want to apply
 the recommended settings (see [Recommended
 Settings](#recommended-gnome-shell-settings)) and lastly it will ask to enable PaperWM.
 ```bash
 ./install.sh # install, load and enable paperwm
 ```
+_Note: following installation you'll likely need to logout and login again for the PaperWM extension to show in the Gnome `Extensions` application._
 
 To uninstall simply run `./uninstall.sh`.
 
