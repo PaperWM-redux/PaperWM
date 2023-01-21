@@ -30,13 +30,13 @@ We hang out on [zulip](https://paperwm.zulipchat.com).
 
 ## Installation
 
-<!---Clone the repo and check out the branch supporting the Gnome Shell version you're running.
+### Install from the [AUR](https://aur.archlinux.org/packages/gnome-shell-extension-paperwm-redux-git)
 
-- 43 (experimental, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
-- 42: https://github.com/paperwm/PaperWM/tree/gnome-42
-- 40: https://github.com/paperwm/PaperWM/tree/gnome-40
-- 3.28-3.38: https://github.com/paperwm/PaperWM/releases/tag/38.2
--->
+For Arch-based distributions, you can install the [PaperWM-redux AUR](https://aur.archlinux.org/packages/gnome-shell-extension-paperwm-redux-git) package.
+
+_Note: the AUR package is git-based install package, so re-installing that package will always pull the latest from the PaperWM-redux [`develop`](https://github.com/PaperWM-redux/PaperWM/tree/develop) branch._
+
+### Install from source
 
 Clone the repo and then run the [`install.sh`](https://github.com/PaperWM-redux/PaperWM/blob/develop/install.sh) script from the repository. The installer will create a link to the repo in
 `$XDG_DATA_HOME/gnome-shell/extensions/`. It will then ask if you want to apply
