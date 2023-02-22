@@ -17,3 +17,8 @@
 .paperwm-minimap-selection {
     border-radius: 8px;
 }
+
+.paperwm-window-position-bar {
+    border: 0; /* disable border to calm it down a bit */
+    border-radius: 1px;
+}

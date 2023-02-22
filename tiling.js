@@ -34,7 +34,6 @@ var display = global.display;
 /** @type {Spaces} */
 var spaces;
 
-
 var Minimap = Extension.imports.minimap;
 var Scratch = Extension.imports.scratch;
 var Gestures = Extension.imports.gestures;
@@ -173,8 +172,10 @@ var Space = class Space extends Array {
         this.label = label;
         label.hide();
 
-        let selection = new St.Widget({name: 'selection',
-                                       style_class: 'paperwm-selection tile-preview'});
+        let selection = new St.Widget({
+            name: 'selection',
+            style_class: 'paperwm-selection tile-preview'
+        });
         this.selection = selection;
 
         clip.space = this;
@@ -207,6 +208,13 @@ var Space = class Space extends Array {
         this.selectedWindow = null;
         this.leftStack = 0; // not implemented
         this.rightStack = 0; // not implemented
+
+        this.windowPositionBar = new St.Widget({
+            name: 'windowPositionBar',
+            style_class: 'paperwm-window-position-bar tile-preview'
+        });
+        this.windowPositionBar.hide();
+        this.actor.add_actor(this.windowPositionBar);
 
         if (doInit)
             this.init();
@@ -494,7 +502,6 @@ var Space = class Space extends Array {
             x += resultingWidth + gap;
         }
         this._inLayout = false;
-
 
         let oldWidth = this.cloneContainer.width;
         let min = workArea.x;
@@ -1119,6 +1126,26 @@ border-radius: ${borderWidth}px;
         if (this.workspace === workspaceManager.get_active_workspace()) {
             TopBar.updateWorkspaceIndicator(this.workspace.index());
         }
+    }
+
+    updateWindowPositionBar() {
+        // number of columns (a column have one or more windows)
+        let cols = this.length;
+        if (cols <= 0) {
+            this.windowPositionBar.hide();
+            return;
+        } else {
+            this.windowPositionBar.show();
+        }
+        
+        let width = this.monitor.width;
+        let segments = width / cols;
+        this.windowPositionBar.width = segments;
+        this.windowPositionBar.height = TopBar.panelBox.height;
+
+        // index of currently selected window
+        let windex = this.indexOf(this.selectedWindow);
+        this.windowPositionBar.x = windex * segments;
     }
 
     createBackground() {
@@ -1841,7 +1868,6 @@ var Spaces = class Spaces extends Map {
     }
 
     selectSequenceSpace(direction, move) {
-
         // if in stack preview do not run sequence preview
         if (inPreview === PreviewMode.STACK) {
             return;
@@ -2098,7 +2124,7 @@ var Spaces = class Spaces extends Map {
 
         let onComplete = () => {
             // Hide any spaces that aren't visible This
-            // avoids a nasty permance degregration in some
+            // avoids a nasty preformance degregration in some
             // cases
             for (const space of spaces.values()) {
                 if (!visible.get(space)) {
@@ -2481,6 +2507,8 @@ function remove_handler(workspace, meta_window) {
             meta_window.clone = null;
         }
     }
+
+    space.updateWindowPositionBar();
 }
 
 
@@ -2758,6 +2786,8 @@ function ensureViewport(meta_window, space, force) {
     selected.clone.raise_top();
     updateSelection(space, meta_window);
     space.emit('select');
+
+    space.updateWindowPositionBar();
 }
 
 function updateSelection(space, metaWindow) {
@@ -3534,7 +3564,6 @@ function cycleWorkspaceSettings(dir=1) {
     }
     return space;
 }
-
 
 // Backward compatibility
 function defwinprop(...args) {
