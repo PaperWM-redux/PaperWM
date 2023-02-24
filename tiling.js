@@ -209,11 +209,12 @@ var Space = class Space extends Array {
         this.leftStack = 0; // not implemented
         this.rightStack = 0; // not implemented
 
+        this.showWindowPositionBar = prefs.show_window_position_bar;
         this.windowPositionBar = new St.Widget({
             name: 'windowPositionBar',
             style_class: 'paperwm-window-position-bar tile-preview'
         });
-        this.windowPositionBar.hide();
+        this.windowPositionBar.hide(); // default on empty space
         this.actor.add_actor(this.windowPositionBar);
 
         if (doInit)
@@ -1129,9 +1130,15 @@ border-radius: ${borderWidth}px;
     }
 
     updateWindowPositionBar() {
+        // if pref show-window-position-bar is set to false, hide
+        if (!prefs.show_window_position_bar) {
+            this.windowPositionBar.hide();
+            return;
+        }
+        
         // number of columns (a column have one or more windows)
         let cols = this.length;
-        if (cols <= 0) {
+        if (cols <= 1) {
             this.windowPositionBar.hide();
             return;
         } else {
@@ -2507,8 +2514,6 @@ function remove_handler(workspace, meta_window) {
             meta_window.clone = null;
         }
     }
-
-    space.updateWindowPositionBar();
 }
 
 
@@ -2786,8 +2791,6 @@ function ensureViewport(meta_window, space, force) {
     selected.clone.raise_top();
     updateSelection(space, meta_window);
     space.emit('select');
-
-    space.updateWindowPositionBar();
 }
 
 function updateSelection(space, metaWindow) {
@@ -2800,6 +2803,7 @@ function updateSelection(space, metaWindow) {
 
     // then set the new selection active
     space.setSelectionActive();
+    space.updateWindowPositionBar();
     if (space.selection.get_parent() === clone)
         return;
     space.selection.reparent(clone);
