@@ -196,6 +196,89 @@ class ColorEntry {
     }
 }
 
+/**
+ * FocusMode icon class.
+ */
+var FocusIcon = Utils.registerClass(
+class FocusIcon extends St.Icon {
+    _init(styleClass='') {
+        super._init({style_class: styleClass});
+        this.setMode(Tiling.FocusModes.DEFAULT);
+    }
+
+    /**
+     * Set the mode that this icon will display.
+     * @param {Tiling.FocusModes} mode 
+     */
+    setMode(mode) {
+        if (mode === Tiling.FocusModes.DEFAULT) {
+            this.icon_name = 'sidebar-show-right-symbolic';
+        }
+        else if (mode === Tiling.FocusModes.CENTRE) {
+            this.icon_name = 'preferences-desktop-multitasking-symbolic';
+        }
+    }
+
+    /**
+     * Sets visibility of icon.
+     * @param {boolean} visible 
+     */
+    setVisible(visible = true) {
+        this.visible = visible;
+    }
+}
+);
+
+var FocusMenu = Utils.registerClass(
+class FocusMenu extends PanelMenu.Button {
+    _init() {
+        super._init(0.0, 'FocusMode');
+        
+        this._icon = new FocusIcon('system-status-icon');
+
+        this.setFocusMode(Tiling.FocusModes.DEFAULT);
+        this.add_child(this._icon);
+
+        this.connect('event', this._onClicked.bind(this));
+    }
+
+    /**
+     * Sets the focus mode with this button.
+     * @param {*} mode 
+     * @param {Boolean} push: if true also calls the Tiling.setFocusMode method
+     */
+    setFocusMode(mode, push=false) {
+        this.focusMode = mode;
+        this._icon.setMode(mode);
+
+        // if push, call Tiling.setFocusMode
+        push && Tiling.setFocusMode(mode, undefined, false);
+    }
+
+    switchToNextFocusMode() {
+        const numModes = Object.keys(Tiling.FocusModes).length;
+        // for currMode we switch to 1-based to use it validly in remainder operation
+        const currMode = Object.values(Tiling.FocusModes).indexOf(this.focusMode) + 1;
+        const nextMode = (currMode % numModes);
+        this.setFocusMode(nextMode, true);
+    }
+
+    _onClicked(actor, event) {
+        if (Tiling.inPreview != Tiling.PreviewMode.NONE || Main.overview.visible) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        if (event.type() !== Clutter.EventType.TOUCH_BEGIN && 
+            event.type() !== Clutter.EventType.BUTTON_PRESS) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        this.switchToNextFocusMode();
+        return Clutter.EVENT_PROPAGATE;
+    }
+}
+);
+
 var WorkspaceMenu = Utils.registerClass(
 class WorkspaceMenu extends PanelMenu.Button {
     _init() {
@@ -241,7 +324,6 @@ class WorkspaceMenu extends PanelMenu.Button {
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-
         this._prefItem = new PopupMenu.PopupImageMenuItem('Workspace preference', 'preferences-system-symbolic');
         this.menu.addMenuItem(this._prefItem);
 
@@ -255,7 +337,6 @@ class WorkspaceMenu extends PanelMenu.Button {
             let temp_file = Gio.File.new_for_path(GLib.get_tmp_dir()).get_child('paperwm.workspace')
             temp_file.replace_contents(wi.toString(), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null)
             imports.misc.extensionUtils.openPrefs()
-    
         });
 
 
@@ -486,6 +567,7 @@ class WorkspaceMenu extends PanelMenu.Button {
     }
 });
 
+var focusMenu;
 var menu;
 var orginalActivitiesText;
 var screenSignals, signals;
@@ -500,6 +582,9 @@ var panelBoxShowId, panelBoxHideId;
 function enable () {
     Main.panel.statusArea.activities.hide();
 
+    focusMenu = new FocusMenu();
+    Main.panel.addToStatusArea('FocusMode', focusMenu, 0, 'left');
+
     menu = new WorkspaceMenu();
     // Work around 'actor' warnings
     let panel = Main.panel;
@@ -513,7 +598,7 @@ function enable () {
             space.label.clutter_text.set_font_description(fontDescription);
         }
     }
-    Main.panel.addToStatusArea('WorkspaceMenu', menu, 0, 'left');
+    Main.panel.addToStatusArea('WorkspaceMenu', menu, 1, 'left');
     menu.show();
 
     setClearStyle();
@@ -575,6 +660,8 @@ function enable () {
 
 function disable() {
     signals.destroy();
+    focusMenu.destroy();
+    focusMenu = null;
     menu.destroy();
     menu = null;
     Main.panel.statusArea.activities.show();
@@ -629,8 +716,12 @@ function updateWorkspaceIndicator (index) {
     let space = spaces && spaces.spaceOf(workspaceManager.get_workspace_by_index(index));
     let onMonitor = space && space.monitor === panelMonitor;
     let nav = Navigator.navigator
-    if (onMonitor || (Tiling.inPreview && nav && nav.from.monitor === panelMonitor))
+    if (onMonitor || (Tiling.inPreview && nav && nav.from.monitor === panelMonitor)) {
         setWorkspaceName(space.name);
+
+        // also update focus mode
+        focusMenu.setFocusMode(space.focusMode);
+    }
 };
 
 function setWorkspaceName (name) {

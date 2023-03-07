@@ -62,6 +62,9 @@ var sizeSlack = 30;
 var PreviewMode = {NONE: 0, STACK: 1, SEQUENTIAL: 2};
 var inPreview = PreviewMode.NONE;
 
+// DEFAULT mode is normal/original PaperWM window focus behaviour
+var FocusModes = {DEFAULT: 0, CENTRE: 1};
+
 var signals, oldSpaces, backgroundGroup, oldMonitors, WindowCloneLayout,
     grabSignals;
 function init() {
@@ -137,10 +140,15 @@ var Space = class Space extends Array {
         this.workspace = workspace;
         this.signals = new utils.Signals();
 
-        // The windows that should be represented by their WindowActor
+        // windows that should be represented by their WindowActor
         this.visible = [];
         this._floating = [];
         this._populated = false;
+
+        // default focusMode (can be overriden by saved user pref in Space.init method)
+        this.focusMode = FocusModes.DEFAULT;
+        this.focusModeIcon = new TopBar.FocusIcon('focus-mode-icon');
+        this.focusModeIcon.setVisible(false); // hide by default
 
         let clip = new Clutter.Actor({name: "clip"});
         this.clip = clip;
@@ -183,6 +191,7 @@ var Space = class Space extends Array {
 
         container.add_actor(clip);
         clip.add_actor(actor);
+        actor.add_child(this.focusModeIcon);
         actor.add_actor(labelParent);
         actor.add_actor(cloneClip);
         cloneClip.add_actor(cloneContainer);
@@ -1516,7 +1525,7 @@ var Spaces = class Spaces extends Map {
                         this.switchWorkspace.bind(this));
 
         this.signals.connect(this.overrideSettings, 'changed::workspaces-only-on-primary',
-                             this.monitorsChanged.bind(this));
+                             this.monitorsChanged.bind(this));               
 
         // Clone and hook up existing windows
         display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
@@ -1828,6 +1837,7 @@ var Spaces = class Spaces extends Map {
         }
 
         inPreview = PreviewMode.NONE;
+        this.showSpaceFocusIcons(false);
         TopBar.setClearStyle();
     }
 
@@ -1848,6 +1858,7 @@ var Spaces = class Spaces extends Map {
             return;
         }
         inPreview = PreviewMode.SEQUENTIAL;
+        this.showSpaceFocusIcons();
         TopBar.setTransparentStyle();
 
         if (Main.panel.statusArea.appMenu) {
@@ -1983,10 +1994,11 @@ var Spaces = class Spaces extends Map {
     }
 
     _initWorkspaceStack() {
-        if (inPreview)
+        if (inPreview) {
             return;
-
+        }
         inPreview = PreviewMode.STACK;
+        this.showSpaceFocusIcons();
         TopBar.setTransparentStyle();
 
         // Always show the topbar when using the workspace stack
@@ -2066,7 +2078,6 @@ var Spaces = class Spaces extends Map {
     }
 
     selectStackSpace(direction, move) {
-
         // if in sequence preview do not run stack preview
         if (inPreview === PreviewMode.SEQUENTIAL) {
             return;
@@ -2145,7 +2156,6 @@ var Spaces = class Spaces extends Map {
     }
 
     animateToSpace(to, from, callback) {
-
         let currentPreviewMode = inPreview;
         inPreview = PreviewMode.NONE;
 
@@ -2347,6 +2357,14 @@ var Spaces = class Spaces extends Map {
             insertWindow(metaWindow, {existing: false});
         });
     };
+
+    /**
+     * Shows or hides focus icons in spaces.
+     * @param {boolean} show 
+     */
+    showSpaceFocusIcons(show = true) {
+        this.forEach(s => s.focusModeIcon.setVisible(show));
+    }
 }
 Signals.addSignalMethods(Spaces.prototype);
 
@@ -2757,7 +2775,10 @@ function ensuredX(meta_window, space) {
     let workArea = space.workArea();
     let min = workArea.x;
     let max = min + workArea.width;
-    if (meta_window.fullscreen) {
+    if (space.focusMode == FocusModes.CENTRE) {
+        // window switching should centre focus
+        x = workArea.x + Math.round(workArea.width/2 - frame.width/2);
+    } else if (meta_window.fullscreen) {
         x = 0;
     } else if (index == 0 && x <= min) {
         // Always align the first window to the display's left edge
@@ -3317,12 +3338,17 @@ function activateWindowAfterRendered(actor, mw) {
     });
 }
 
+/**
+ * Centers the currently selected window.
+ */
 function centerWindowHorizontally(metaWindow) {
     const frame = metaWindow.get_frame_rect();
     const space = spaces.spaceOfWindow(metaWindow);
+    const index = space.indexOf(metaWindow);
     const monitor = space.monitor;
     const workArea = space.workArea();
-    const targetX = workArea.x + Math.round(workArea.width/2 - frame.width/2);
+
+    const targetX = workArea.x + Math.round((workArea.width - frame.width)/2);
     const dx = targetX - (metaWindow.clone.targetX + space.targetX);
 
     let [pointerX, pointerY, mask] = global.get_pointer();
@@ -3336,6 +3362,43 @@ function centerWindowHorizontally(metaWindow) {
     } else {
         move_to(space, metaWindow, { x: targetX,
                                      onComplete: () => space.moveDone()});
+    }
+}
+
+/**
+ * Sets the focus mode for a space.
+ * @param {FocusModes} mode 
+ * @param {Space} space
+ * @param {boolean} push: if true also pushes change to Topbar.focusMenu
+ */
+function setFocusMode(mode, space, push=true) {
+    space = space ?? spaces.spaceOf(workspaceManager.get_active_workspace());
+    space.focusMode = mode;
+    space.focusModeIcon.setMode(mode);
+    push && TopBar.focusMenu.setFocusMode(mode);
+
+    // if centre also center selectedWindow
+    if (mode === FocusModes.CENTRE) {
+        if (space.selectedWindow) {
+            centerWindowHorizontally(space.selectedWindow);
+        }
+    }
+}
+
+/**
+ * Enables CENTRE focusMode if not currently enabled, otherwise switches back to DEFAULT mode.
+ * NOTE: if more FocusModes are added in the future (e.g. zenmode etc.) then
+ * will likely need to track/store the mode before switching to center mode.
+ * Not needed at the moment though.
+ * @param {Space} space
+ */
+function toggleCentreFocusMode(space) {
+    space = space ?? spaces.spaceOf(workspaceManager.get_active_workspace());
+    if (space.focusMode === FocusModes.CENTRE) {
+        setFocusMode(FocusModes.DEFAULT, space);
+    } 
+    else {
+        setFocusMode(FocusModes.CENTRE, space);
     }
 }
 
@@ -3501,7 +3564,6 @@ function moveDownSpace(mw, space) {
 function moveUpSpace(mw, space) {
     spaces.selectSequenceSpace(Meta.MotionDirection.UP, true);
 }
-
 
 /**
    Detach the @metaWindow, storing it at the bottom right corner while
