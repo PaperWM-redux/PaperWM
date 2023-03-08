@@ -163,20 +163,15 @@ var Space = class Space extends Array {
         let cloneContainer = new St.Widget({name: "clone-container"});
         this.cloneContainer = cloneContainer;
 
-        // Pick up the same css as the top bar label
-        let label = new St.Label();
         let labelParent = new St.Widget({name: 'panel'});
-        let labelParent2 = new St.Widget({style_class: 'panel-button'});
-        for (let p of [labelParent, labelParent2]) {
-            p.style = `
+            labelParent.style = `
                 background-color: transparent;
                 border-image: none;
                 background-image: none;
                 border: none;
             `;
-        }
-        labelParent.add_actor(labelParent2);
-        labelParent2.add_actor(label);
+        let label = new St.Label();
+        labelParent.add_actor(label);
         this.label = label;
         label.hide();
 
@@ -471,11 +466,23 @@ var Space = class Space extends Array {
         let x = 0;
         let selectedIndex = this.selectedIndex();
         let workArea = this.workArea();
+
         // Happens on monitors-changed
         if (workArea.width === 0) {
             this._inLayout = false;
             return;
         }
+
+        // compensate to keep window position bar on all monitors
+        const panelBoxHeight = TopBar.panelBox.height;
+        const monitor = prefs.topbar_follow_focus ? 
+            Main.layoutManager.focusMonitor :
+            Main.layoutManager.primaryMonitor;
+        if (monitor !== this.monitor) {
+            workArea.y += panelBoxHeight;
+            workArea.height -= panelBoxHeight;
+        }
+        
         let availableHeight = workArea.height;
         let y0 = workArea.y;
         let fixPointAttempCount = 0;
@@ -987,7 +994,6 @@ var Space = class Space extends Array {
     }
 
     startAnimate(grabWindow) {
-
         if (!this._isAnimating && !Meta.is_wayland_compositor()) {
             // Tracking the background fixes issue #80
             // It also let us activate window clones clicked during animation
@@ -1311,7 +1317,7 @@ border-radius: ${borderWidth}px;
         this.width = monitor.width;
         this.height = monitor.height;
 
-        let time = animate ? 0.25 : 0;
+        let time = animate ? prefs.animation_time : 0;
 
         Tweener.addTween(this.actor,
                         {x: 0, y: 0, scale_x: 1, scale_y: 1,
@@ -1838,8 +1844,23 @@ var Spaces = class Spaces extends Map {
         }
 
         inPreview = PreviewMode.NONE;
-        this.showSpaceFocusIcons(false);
-        TopBar.setClearStyle();
+        this.setSpaceTopbarElementsVisible(false);
+    }
+
+    /**
+     * A space contains several elements that are duplicated (in the topbar) so that
+     * they can be seen in the space "topbar" when switching workspaces. This function
+     * sets these elements' visibility when not needed.
+     * @param {boolean} visible 
+     */
+    setSpaceTopbarElementsVisible(visible=true) {
+        visible ? TopBar.setTransparentStyle() : TopBar.setClearStyle();
+
+        // set visibility on space elements (like workspace name)
+        this.forEach(s => {
+            visible ? s.label.show() : s.label.hide();
+            s.focusModeIcon.setVisible(visible);
+        });
     }
 
     _getOrderedSpaces(monitor) {
@@ -1859,8 +1880,7 @@ var Spaces = class Spaces extends Map {
             return;
         }
         inPreview = PreviewMode.SEQUENTIAL;
-        this.showSpaceFocusIcons();
-        TopBar.setTransparentStyle();
+        this.setSpaceTopbarElementsVisible();
 
         if (Main.panel.statusArea.appMenu) {
             Main.panel.statusArea.appMenu.container.hide();
@@ -1999,8 +2019,7 @@ var Spaces = class Spaces extends Map {
             return;
         }
         inPreview = PreviewMode.STACK;
-        this.showSpaceFocusIcons();
-        TopBar.setTransparentStyle();
+        this.setSpaceTopbarElementsVisible();
 
         // Always show the topbar when using the workspace stack
         TopBar.fixTopBar();
@@ -2358,14 +2377,6 @@ var Spaces = class Spaces extends Map {
             insertWindow(metaWindow, {existing: false});
         });
     };
-
-    /**
-     * Shows or hides focus icons in spaces.
-     * @param {boolean} show 
-     */
-    showSpaceFocusIcons(show = true) {
-        this.forEach(s => s.focusModeIcon.setVisible(show));
-    }
 }
 Signals.addSignalMethods(Spaces.prototype);
 
@@ -2494,6 +2505,9 @@ function enable(errorNotification) {
             s.monitor.clickOverlay.show();
         });
         TopBar.fixTopBar()
+
+        // run a final layout for multi-monitor topbar and window position indicator init
+        imports.mainloop.timeout_add(200, () => spaces.forEach(s => s.layout(false)));
     }
 
     if (Main.layoutManager._startingUp) {
@@ -2744,7 +2758,6 @@ function insertWindow(metaWindow, {existing}) {
 }
 
 function animateDown(metaWindow) {
-
     let space = spaces.spaceOfWindow(metaWindow);
     let workArea = space.workArea();
     let frame = metaWindow.get_frame_rect();
