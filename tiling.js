@@ -217,16 +217,15 @@ var Space = class Space extends Array {
             name: 'windowPositionBarBackdrop',
             style_class: 'paperwm-window-position-bar-backdrop'
         });
-        this.actor.add_actor(this.windowPositionBarBackdrop);
-
-        this.showWindowPositionBar = prefs.show_window_position_bar;
         this.windowPositionBar = new St.Widget({
             name: 'windowPositionBar',
             style_class: 'paperwm-window-position-bar tile-preview'
         });
         this.windowPositionBar.hide(); // default on empty space
-        this.actor.add_actor(this.windowPositionBar);
         this.windowPositionBar.raise_top();
+        if (prefs.show_window_position_bar) {
+            this.enableWindowPositionBar();
+        }
 
         if (doInit)
             this.init();
@@ -474,13 +473,15 @@ var Space = class Space extends Array {
         }
 
         // compensate to keep window position bar on all monitors
-        const panelBoxHeight = TopBar.panelBox.height;
-        const monitor = prefs.topbar_follow_focus ? 
-            Main.layoutManager.focusMonitor :
-            Main.layoutManager.primaryMonitor;
-        if (monitor !== this.monitor) {
-            workArea.y += panelBoxHeight;
-            workArea.height -= panelBoxHeight;
+        if (prefs.show_window_position_bar) {
+            const panelBoxHeight = TopBar.panelBox.height;
+            const monitor = prefs.topbar_follow_focus ?
+                Main.layoutManager.focusMonitor :
+                Main.layoutManager.primaryMonitor;
+            if (monitor !== this.monitor) {
+                workArea.y += panelBoxHeight;
+                workArea.height -= panelBoxHeight;
+            }
         }
         
         let availableHeight = workArea.height;
@@ -768,6 +769,13 @@ var Space = class Space extends Array {
         this._floating.splice(i, 1);
         this.actor.remove_actor(metaWindow.clone);
         return true;
+    }
+
+    /**
+     * Returns true iff this space has a currently fullscreened window.
+     */
+    hasFullScreenWindow() {
+        return this.getWindows().some(el => el.fullscreen);
     }
 
     swap(direction, metaWindow) {
@@ -1180,13 +1188,52 @@ border-radius: ${borderWidth}px;
         }
     }
 
+    /**
+     * Enables or disables this space's window position bar.
+     * @param {boolean} enable 
+     */
+    enableWindowPositionBar(enable=true) {
+        if (enable) {
+            [this.windowPositionBarBackdrop, this.windowPositionBar]
+                .forEach(i => this.actor.add_actor(i));
+            this.updateWindowPositionBar();
+        }
+        else {
+            [this.windowPositionBarBackdrop, this.windowPositionBar]
+                .forEach(i => this.actor.remove_actor(i));
+        }
+    }
+
+    /**
+     * Shows or hides this space's window position bar. Useful for temporarily
+     * hiding the position bar (e.g. for fullscreen mode).
+     * @param {boolean} show 
+     */
+    showWindowPositionBar(show=true) {
+        if (show) {
+            [this.windowPositionBarBackdrop, this.windowPositionBar]
+                .forEach(i => i.show());
+        }
+        else {
+            [this.windowPositionBarBackdrop, this.windowPositionBar]
+                .forEach(i => i.hide());
+        }
+    }
+
     updateWindowPositionBar() {
-        // if pref show-window-position-bar is set to false, hide
+        // if pref show-window-position-bar, exit
         if (!prefs.show_window_position_bar) {
-            this.windowPositionBar.hide();
             return;
         }
         
+        // space has a fullscreen window, hide window position bar
+        if (this.hasFullScreenWindow()) {
+            this.showWindowPositionBar(false);
+            return;
+        }
+        // if here has not fullscreen window, show as per usual
+        this.showWindowPositionBar();
+
         // number of columns (a column have one or more windows)
         let cols = this.length;
         if (cols <= 1) {
@@ -1309,7 +1356,6 @@ border-radius: ${borderWidth}px;
             this.updateColor()
         }
         let background = this.background;
-
 
         let cloneContainer = this.cloneContainer;
         let clip = this.clip;
@@ -1854,7 +1900,10 @@ var Spaces = class Spaces extends Map {
      * @param {boolean} visible 
      */
     setSpaceTopbarElementsVisible(visible=true) {
-        visible ? TopBar.setTransparentStyle() : TopBar.setClearStyle();
+        // if windowPositionBar shown, we want the topbar style to be transparent if visible
+        if (prefs.show_window_position_bar) {
+            visible ? TopBar.setTransparentStyle() : TopBar.setClearStyle();
+        }
 
         // set visibility on space elements (like workspace name)
         this.forEach(s => {
@@ -2377,6 +2426,25 @@ var Spaces = class Spaces extends Map {
             insertWindow(metaWindow, {existing: false});
         });
     };
+
+    /**
+     * Checks whether the window position bar should be enabled.
+     */
+    showWindowPositionBarChanged() {
+        if (prefs.show_window_position_bar) {
+            this.forEach(s => {
+                s.enableWindowPositionBar();
+            });
+        }
+        if (!prefs.show_window_position_bar) {
+            // should be in normal topbar mode
+            this.forEach(s => {
+                s.enableWindowPositionBar(false);
+            });
+        }
+
+        TopBar.fixStyle();
+    }
 }
 Signals.addSignalMethods(Spaces.prototype);
 
@@ -2564,7 +2632,6 @@ function add_filter(meta_window) {
     return true;
 }
 
-
 /**
    Handle windows leaving workspaces.
  */
@@ -2586,7 +2653,6 @@ function remove_handler(workspace, meta_window) {
         }
     }
 }
-
 
 /**
    Handle windows entering workspaces.
@@ -2883,7 +2949,6 @@ function updateSelection(space, metaWindow) {
     clone.set_child_below_sibling(space.selection, cloneActor);
     allocateClone(metaWindow);
 }
-
 
 /**
  * Move the column containing @meta_window to x, y and propagate the change
