@@ -164,12 +164,13 @@ var Space = class Space extends Array {
         this.cloneContainer = cloneContainer;
 
         let labelParent = new St.Widget({name: 'panel'});
-            labelParent.style = `
-                background-color: transparent;
-                border-image: none;
-                background-image: none;
-                border: none;
-            `;
+        labelParent.style = `
+            background-color: transparent;
+            border-image: none;
+            background-image: none;
+            border: none;
+        `;
+        this.labelParent = labelParent;
         let label = new St.Label();
         labelParent.add_actor(label);
         this.label = label;
@@ -1907,6 +1908,8 @@ var Spaces = class Spaces extends Map {
 
         // set visibility on space elements (like workspace name)
         this.forEach(s => {
+            s.focusModeIcon.raise_top();
+            s.labelParent.raise_top();
             visible ? s.label.show() : s.label.hide();
             s.focusModeIcon.setVisible(visible);
         });
