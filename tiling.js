@@ -147,8 +147,13 @@ var Space = class Space extends Array {
 
         // default focusMode (can be overriden by saved user pref in Space.init method)
         this.focusMode = FocusModes.DEFAULT;
-        this.focusModeIcon = new TopBar.FocusIcon('focus-mode-icon');
-        this.focusModeIcon.setVisible(false); // hide by default
+        this.focusModeIcon = new TopBar.FocusIcon('focus-mode-icon')
+            .setMode(this.focusMode)
+            .setClickFunction(() => {
+                switchToNextFocusMode(this);
+            })
+            .setVisible(false); // hide by default
+        this.unfocusXPosition = null; // init
 
         let clip = new Clutter.Actor({name: "clip"});
         this.clip = clip;
@@ -171,7 +176,8 @@ var Space = class Space extends Array {
             border: none;
         `;
         this.labelParent = labelParent;
-        let label = new St.Label();
+        let label = new St.Label({reactive: true});
+        label.connect('button-press-event', () => Main.overview.toggle());
         labelParent.add_actor(label);
         this.label = label;
         label.hide();
@@ -187,8 +193,8 @@ var Space = class Space extends Array {
 
         container.add_actor(clip);
         clip.add_actor(actor);
-        actor.add_child(this.focusModeIcon);
         actor.add_actor(labelParent);
+        actor.add_child(this.focusModeIcon);
         actor.add_actor(cloneClip);
         cloneClip.add_actor(cloneContainer);
 
@@ -247,7 +253,7 @@ var Space = class Space extends Array {
             this.targetX = oldSpace.targetX;
         }
         this.cloneContainer.x = this.targetX;
-        
+
         // init window position bar and space topbar elements
         this.windowPositionBarBackdrop.width = this.monitor.width;
         this.windowPositionBarBackdrop.height = TopBar.panelBox.height;
@@ -595,7 +601,7 @@ var Space = class Space extends Array {
 
     isFullyVisible(metaWindow) {
         let clone = metaWindow.clone;
-        let x = clone.targetX + this.targetX;
+        let x = this.visibleX(metaWindow);
         let workArea = this.workArea();
         let min = workArea.x;
 
@@ -603,9 +609,8 @@ var Space = class Space extends Array {
     }
 
     visibleRatio(metaWindow) {
-
         let clone = metaWindow.clone;
-        let x = clone.targetX + this.targetX;
+        let x = this.visibleX(metaWindow);
         let workArea = this.workArea();
         let min = workArea.x;
 
@@ -617,7 +622,7 @@ var Space = class Space extends Array {
 
     isPlaceable(metaWindow) {
         let clone = metaWindow.clone;
-        let x = clone.targetX + this.targetX;
+        let x = this.visibleX(metaWindow);
         let workArea = Main.layoutManager.getWorkAreaForMonitor(this.monitor.index);
         let min = workArea.x - this.monitor.x;
 
@@ -686,7 +691,7 @@ var Space = class Space extends Array {
                 return
             let f = w.get_frame_rect();
             let clone = w.clone;
-            let x = clone.targetX + this.targetX;
+            let x = this.visibleX(w);
             let y = this.monitor.y + clone.targetY;
             x = Math.min(this.width - stack_margin, Math.max(stack_margin - f.width, x));
             x += this.monitor.x;
@@ -882,6 +887,20 @@ var Space = class Space extends Array {
         ensureViewport(metaWindow, space);
     }
 
+    /**
+     * Return the x position of the visible element of this window.
+     */
+    visibleX(metaWindow) {
+        return metaWindow.clone.targetX + this.targetX;
+    }
+
+    /**
+     * Return the y position of the visible element of this window.
+     */
+    visibleY(metaWindow) {
+        return metaWindow.clone.targetY + this.monitor.y;
+    }
+
     positionOf(metaWindow) {
         metaWindow = metaWindow || this.selectedWindow;
         let index, row;
@@ -956,10 +975,9 @@ var Space = class Space extends Array {
             if (unMovable)
                 return;
 
-            let clone = w.clone;
             let f = w.get_frame_rect();
-            let x = clone.targetX + this.targetX;
-            let y = monitor.y + clone.targetY;
+            let x = this.visibleX(w);
+            let y = this.visibleY(w);
             x = Math.max(stack_margin - f.width, x);
             x = Math.min(this.width - stack_margin, x);
             x += monitor.x;
@@ -1293,10 +1311,11 @@ border-radius: ${borderWidth}px;
 
         if (visible) {
             this.labelParent.raise_top();
+            this.label.show();
+
             this.focusModeIcon.raise_top();
             this.focusModeIcon.show();
-            this.label.show();
-        } 
+        }
         else {
             this.focusModeIcon.hide();
             this.label.hide();
@@ -1953,6 +1972,17 @@ var Spaces = class Spaces extends Map {
         });
     }
 
+    /**
+     * Sets the focusIconPosition for all spaces.
+     * @param {int} x 
+     * @param {int} y 
+     */
+    setFocusIconPosition(x=0, y=0) {
+        this.forEach(s => {
+            s.focusModeIcon.set_position(x, y);
+        });
+    }
+
     _getOrderedSpaces(monitor) {
         let nWorkspaces = workspaceManager.n_workspaces;
         let out = [];
@@ -2040,7 +2070,7 @@ var Spaces = class Spaces extends Map {
             return;
         }
 
-        let currentSpace = this.spaceOf(workspaceManager.get_active_workspace());
+        let currentSpace = this.getActiveSpace();
         let monitorSpaces = this._getOrderedSpaces(currentSpace.monitor);
 
         if (!inPreview) {
@@ -2108,13 +2138,14 @@ var Spaces = class Spaces extends Map {
         if (inPreview) {
             return;
         }
+
         inPreview = PreviewMode.STACK;
         this.setSpaceTopbarElementsVisible();
 
         // Always show the topbar when using the workspace stack
         TopBar.fixTopBar();
         const scale = 0.9;
-        let space = this.spaceOf(workspaceManager.get_active_workspace());
+        let space = this.getActiveSpace();
         let mru = [...this.stack];
         this.monitors.forEach(space => mru.splice(mru.indexOf(space), 1));
         mru = [space, ...mru];
@@ -2194,7 +2225,7 @@ var Spaces = class Spaces extends Map {
         }
 
         const scale = 0.9;
-        let space = this.spaceOf(workspaceManager.get_active_workspace());
+        let space = this.getActiveSpace();
         let mru = [...this.stack];
 
         this.monitors.forEach(space => mru.splice(mru.indexOf(space), 1));
@@ -2394,6 +2425,22 @@ var Spaces = class Spaces extends Map {
     };
 
     /**
+     * Returns the currently active space.
+     */
+    getActiveSpace() {
+        return this.spaceOf(workspaceManager.get_active_workspace());
+    }
+
+    /**
+     * Returns true if the space is the currently active space.
+     * @param {Space} space 
+     * @returns 
+     */
+    isActiveSpace(space) {
+        return space === this.getActiveSpace();
+    }
+
+    /**
        Return an array of Space's ordered in most recently used order.
      */
     mru() {
@@ -2487,6 +2534,7 @@ var Spaces = class Spaces extends Map {
         TopBar.fixStyle();
     }
 }
+
 Signals.addSignalMethods(Spaces.prototype);
 
 function is_override_redirect(metaWindow) {
@@ -2896,6 +2944,7 @@ function ensuredX(meta_window, space) {
     let workArea = space.workArea();
     let min = workArea.x;
     let max = min + workArea.width;
+    
     if (space.focusMode == FocusModes.CENTRE) {
         // window switching should centre focus
         x = workArea.x + Math.round(workArea.width/2 - frame.width/2);
@@ -2910,7 +2959,6 @@ function ensuredX(meta_window, space) {
     } else if (frame.width > workArea.width*0.9 - 2*(prefs.horizontal_margin + prefs.window_gap)) {
         // Consider the window to be wide and center it
         x = min + Math.round((workArea.width - frame.width)/2);
-
     } else if (x + frame.width > max) {
         // Align to the right prefs.horizontal_margin
         x = max - prefs.horizontal_margin - frame.width;
@@ -3430,18 +3478,18 @@ function cycleWindowHeight(metaWindow) {
 }
 
 function activateNthWindow(n, space) {
-    space = space || spaces.spaceOf(workspaceManager.get_active_workspace());
+    space = space || spaces.getActiveSpace();
     let nth = space[n][0];
     ensureViewport(nth, space);
 }
 
 function activateFirstWindow(mw, space) {
-    space = space || spaces.spaceOf(workspaceManager.get_active_workspace());
+    space = space || spaces.getActiveSpace();
     activateNthWindow(0, space);
 }
 
 function activateLastWindow(mw, space) {
-    space = space || spaces.spaceOf(workspaceManager.get_active_workspace());
+    space = space || spaces.getActiveSpace();
     activateNthWindow(space.length - 1, space);
 }
 
@@ -3489,37 +3537,65 @@ function centerWindowHorizontally(metaWindow) {
  * Sets the focus mode for a space.
  * @param {FocusModes} mode 
  * @param {Space} space
- * @param {boolean} push: if true also pushes change to Topbar.focusMenu
  */
-function setFocusMode(mode, space, push=true) {
-    space = space ?? spaces.spaceOf(workspaceManager.get_active_workspace());
+function setFocusMode(mode, space) {
+    space = space ?? spaces.getActiveSpace();
     space.focusMode = mode;
     space.focusModeIcon.setMode(mode);
-    push && TopBar.focusMenu.setFocusMode(mode);
+    if (space.hasTopBar()) {
+        TopBar.focusButton.setFocusMode(mode);
+    }
 
+    const workArea = space.workArea();
+    const selectedWin = space.selectedWindow;
     // if centre also center selectedWindow
     if (mode === FocusModes.CENTRE) {
-        if (space.selectedWindow) {
-            centerWindowHorizontally(space.selectedWindow);
+        if (selectedWin) {
+            // check it closer to min or max of workArea
+            const frame = selectedWin.get_frame_rect();
+            const winMidpoint = space.visibleX(selectedWin) + frame.width/2;
+            const workAreaMidpoint = workArea.width/2;
+            if (winMidpoint <= workAreaMidpoint) {
+                space.unfocusXPosition = 0;
+            } else {
+                space.unfocusXPosition = workArea.width;
+            }
+            centerWindowHorizontally(selectedWin);
         }
+    }
+
+    // if normal and has saved x position from previous
+    if (mode === FocusModes.DEFAULT && space.unfocusXPosition != null) {
+        // if window is first, move to left edge
+        let position;
+        if (space.indexOf(selectedWin) == 0) {
+            position = 0;
+        }
+        // if windows is last, move to right edge
+        else if (space.indexOf(selectedWin) == space.length - 1) {
+            position = workArea.width;
+        }
+        else {
+            position = space.unfocusXPosition;
+        }
+        // do the move
+        move_to(space, space.selectedWindow, {x:position});
+        ensureViewport(space.selectedWindow, space, true);
+        space.unfocusXPosition = null;
     }
 }
 
 /**
- * Enables CENTRE focusMode if not currently enabled, otherwise switches back to DEFAULT mode.
- * NOTE: if more FocusModes are added in the future (e.g. zenmode etc.) then
- * will likely need to track/store the mode before switching to center mode.
- * Not needed at the moment though.
- * @param {Space} space
+ * Switches to the next focus mode for a space.
+ * @param {Space} space 
  */
-function switchFocusMode(space) {
-    space = space ?? spaces.spaceOf(workspaceManager.get_active_workspace());
-    if (space.focusMode === FocusModes.CENTRE) {
-        setFocusMode(FocusModes.DEFAULT, space);
-    } 
-    else {
-        setFocusMode(FocusModes.CENTRE, space);
-    }
+function switchToNextFocusMode(space) {
+    space = space ?? spaces.getActiveSpace();
+    const numModes = Object.keys(FocusModes).length;
+    // for currMode we switch to 1-based to use it validly in remainder operation
+    const currMode = Object.values(FocusModes).indexOf(space.focusMode) + 1;
+    const nextMode = (currMode % numModes);
+    setFocusMode(nextMode, space);
 }
 
 /**
