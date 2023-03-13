@@ -63,7 +63,7 @@ var PreviewMode = {NONE: 0, STACK: 1, SEQUENTIAL: 2};
 var inPreview = PreviewMode.NONE;
 
 // DEFAULT mode is normal/original PaperWM window focus behaviour
-var FocusModes = {DEFAULT: 0, CENTRE: 1};
+var FocusModes = {DEFAULT: 0, CENTER: 1};
 
 var signals, oldSpaces, backgroundGroup, oldMonitors, WindowCloneLayout,
     grabSignals;
@@ -2971,7 +2971,7 @@ function ensuredX(meta_window, space) {
     let min = workArea.x;
     let max = min + workArea.width;
     
-    if (space.focusMode == FocusModes.CENTRE) {
+    if (space.focusMode == FocusModes.CENTER) {
         // window switching should centre focus
         x = workArea.x + Math.round(workArea.width/2 - frame.width/2);
     } else if (meta_window.fullscreen) {
@@ -3575,7 +3575,7 @@ function setFocusMode(mode, space) {
     const workArea = space.workArea();
     const selectedWin = space.selectedWindow;
     // if centre also center selectedWindow
-    if (mode === FocusModes.CENTRE) {
+    if (mode === FocusModes.CENTER) {
         if (selectedWin) {
             // check it closer to min or max of workArea
             const frame = selectedWin.get_frame_rect();
