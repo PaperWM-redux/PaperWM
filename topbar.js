@@ -201,11 +201,8 @@ class ColorEntry {
  */
 var FocusIcon = Utils.registerClass(
 class FocusIcon extends St.Icon {
-        _init(styleClass = '') {
-            super._init({
-                reactive: true,
-                style_class: styleClass
-            });
+        _init(properties = {}) {
+            super._init(properties);
 
             this.connect('button-press-event', () => {
                 if (this.clickFunction) {
@@ -249,17 +246,13 @@ class FocusIcon extends St.Icon {
 }
 );
 
-var FocusButton = Utils.registerClass({
-    Signals: {
-        'focus-button-added': {},
-    }
-},
+var FocusButton = Utils.registerClass(
 class FocusButton extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'FocusMode');
         
         this.focusMode = Tiling.FocusModes.DEFAULT;
-        this._icon = new FocusIcon('system-status-icon');
+        this._icon = new FocusIcon({style_class: 'system-status-icon'});
         this.setFocusMode(this.focusMode);
 
         this.add_child(this._icon);
@@ -618,6 +611,7 @@ function enable () {
             new Clutter.Vertex({ x: 0, y: 0 }));
         Tiling.spaces.setFocusIconPosition(pos.x, pos.y);
     });
+    fixFocusModeIcon();
 
     fixStyle();
 
@@ -650,6 +644,10 @@ function enable () {
         spaces.setSpaceTopbarElementsVisible(false);
         spaces.forEach(s => s.layout(false));
         spaces.showWindowPositionBarChanged();
+    });
+
+    signals.connect(Settings.settings, 'changed::show-focus-mode-icon', (settings, key) => {
+        fixFocusModeIcon();
     });
 
     signals.connect(panelBox, 'show', () => {
@@ -729,6 +727,11 @@ function fixTopBar() {
         panelBox.scale_y = 1;
         panelBox.show();
     }
+}
+
+function fixFocusModeIcon() {
+    prefs.show_focus_mode_icon ? focusButton.show() : focusButton.hide();
+    Tiling.spaces.forEach(s => s.showFocusModeIcon());
 }
 
 /**
