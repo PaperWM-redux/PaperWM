@@ -265,7 +265,6 @@ var Space = class Space extends Array {
         this.getWindows().forEach(w => {
             animateWindow(w);
         });
-        this.layout(false);
 
         let selected = this.selectedWindow;
         if (selected) {
@@ -1678,6 +1677,19 @@ var Spaces = class Spaces extends Map {
 
         // Initialize spaces _after_ monitors are set up
         this.forEach(space => space.init());
+
+        /**
+         * After spaces have init, do a final layout on active space and activate selected window.
+         * Ensures correct window layout with multi-monitors, and if windows already exist on init, 
+         * (e.g. resetting gnome-shell) then will ensure selectedWindow is activated.
+         */
+        imports.mainloop.timeout_add(0, () => {
+            const space = spaces.getActiveSpace();
+            if (space.selectedWindow) {
+                space.layout(false);
+                Main.activateWindow(space.selectedWindow);
+            }
+        });
 
         this.stack = this.mru();
     }
