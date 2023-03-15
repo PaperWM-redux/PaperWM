@@ -148,7 +148,6 @@ var Space = class Space extends Array {
         // default focusMode (can be overriden by saved user pref in Space.init method)
         this.focusMode = FocusModes.DEFAULT;
         this.focusModeIcon = new TopBar.FocusIcon({
-            reactive: true,
             name: 'panel',
             style_class: 'space-focus-mode-icon',
         })
@@ -1683,7 +1682,7 @@ var Spaces = class Spaces extends Map {
          * Ensures correct window layout with multi-monitors, and if windows already exist on init, 
          * (e.g. resetting gnome-shell) then will ensure selectedWindow is activated.
          */
-        imports.mainloop.timeout_add(0, () => {
+        imports.mainloop.timeout_add(200, () => {
             const space = spaces.getActiveSpace();
             if (space.selectedWindow) {
                 space.layout(false);
