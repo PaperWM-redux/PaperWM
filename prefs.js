@@ -76,7 +76,6 @@ var SettingsWidget = class SettingsWidget {
           this.builder.get_object('workspaces_page'),
           this.builder.get_object('keybindings_page'),
           this.builder.get_object('winprops_page')
-
         ];
     
         pages.forEach(page => prefsWindow.add(page))
@@ -111,12 +110,6 @@ var SettingsWidget = class SettingsWidget {
         bottomMargin.set_value(this._settings.get_int('vertical-margin-bottom'));
         bottomMargin.connect('value-changed', () => {
             this._settings.set_int('vertical-margin-bottom', bottomMargin.get_value());
-        });
-
-        let tilingEdgeMargin = this.builder.get_object('tiling_edge_margin_spinner');
-        tilingEdgeMargin.set_value(this._settings.get_int('tiling-edge-margin'));
-        tilingEdgeMargin.connect('value-changed', () => {
-            this._settings.set_int('tiling-edge-margin', tilingEdgeMargin.get_value());
         });
 
         // processing function for cycle values
