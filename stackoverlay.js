@@ -206,7 +206,8 @@ var StackOverlay = class StackOverlay {
 
         this._direction = direction;
 
-        let overlay = new Clutter.Actor({ reactive: true, name: "stack-overlay" });
+        let overlay = new Clutter.Actor({ reactive: true
+                                          , name: "stack-overlay" });
 
         // Uncomment to debug the overlays
         // overlay.background_color = Clutter.color_from_string('green')[1];
@@ -221,63 +222,37 @@ var StackOverlay = class StackOverlay {
         overlay.width = Tiling.stack_margin;
 
         this.signals = new utils.Signals();
-        this.signals.connect(Settings.settings, 'changed::pressure-barrier', this.updateBarrier.bind(this, true));
+        this.signals.connect(overlay, 'button-press-event', () => {
+            Main.activateWindow(this.target);
+            if (this.clone) {
+                this.clone.destroy();
+                this.clone = null;
+            }
+
+            // remove/cleanup the previous preview
+            this.removePreview();
+            Mainloop.timeout_add(200, () => {
+                // if pointer is still at edge (within 2px), trigger preview
+                let [x, y, mask] = global.get_pointer();
+                if (x <= 2 || x >= this.monitor.width - 2) {
+                    this.triggerPreview.bind(this)();
+                }
+            });
+            return true;
+        });
+
+        this.signals.connect(overlay, 'enter-event', this.triggerPreview.bind(this));
+        this.signals.connect(overlay,'leave-event', this.removePreview.bind(this));
+        this.signals.connect(Settings.settings, 'changed::pressure-barrier',
+            this.updateBarrier.bind(this, true));
+
         this.updateBarrier();
-        
-        this.signals.connect(Settings.settings, 'changed::preview-pressure-threshold', this.initPreviewBarrier.bind(this));
-        this.initPreviewBarrier();
-        
+
         global.window_group.add_child(overlay);
         Main.layoutManager.trackChrome(overlay);
 
         this.overlay = overlay;
         this.setTarget(null);
-    }
-
-    removePreviewBarrier() {
-        if (this.previewBarrier) {
-            if (this.previewPressureBarrier) {
-                this.previewPressureBarrier.removeBarrier(this.previewBarrier);
-            }
-            this.previewBarrier.destroy();
-            this.previewBarrier = null;
-            this.previewPressureBarrier.destroy();
-        }
-    }
-    
-    /**
-     * Initialises the preview pressure barrier.
-     */
-    initPreviewBarrier() {
-        this.removePreviewBarrier();
-
-        const Layout = imports.ui.layout;
-        this.previewPressureBarrier = new Layout.PressureBarrier(
-            prefs.preview_pressure_threshold,
-            prefs.animation_time*1000, Shell.ActionMode.NORMAL);
-        
-            let monitor = this.monitor;
-            let workArea = Main.layoutManager.getWorkAreaForMonitor(monitor.index);
-        let x1, directions;
-        if (this._direction === Meta.MotionDirection.LEFT) {
-            x1 = monitor.x,
-            directions = Meta.BarrierDirection.POSITIVE_X;
-        } else {
-            x1 = monitor.x + monitor.width - 1,
-            directions = Meta.BarrierDirection.NEGATIVE_X;
-        }
-        this.previewBarrier = new Meta.Barrier({
-            display: global.display,
-            x1, x2: x1,
-            y1: workArea.y + 1,
-            y2: workArea.y + workArea.height - 1,
-            directions
-        });
-
-        // remove preview once leave the barrier
-        this.previewBarrier.connect('left', () => this.removePreview());
-        this.previewPressureBarrier.addBarrier(this.previewBarrier);
-        this.previewPressureBarrier.connect('trigger', () => this.triggerPreview());
     }
 
     triggerPreview() {
@@ -288,10 +263,28 @@ var StackOverlay = class StackOverlay {
         this._previewId = Mainloop.timeout_add(100, () => {
             delete this._previewId;
             if (this.clone) {
-                this.destroyClone();
+                this.clone.destroy();
+                this.clone = null;
             }
 
-            this.animatePreviewIn();
+            let [x, y, mask] = global.get_pointer();
+            let actor = this.target.get_compositor_private();
+            let clone = new Clutter.Clone({source: actor});
+            // Remove any window clips, and show the metaWindow.clone's
+            actor.remove_clip();
+            Tiling.animateWindow(this.target);
+
+            this.clone = clone;
+            let scale = prefs.minimap_scale;
+            clone.set_scale(scale, scale);
+            Main.uiGroup.add_actor(clone);
+
+            let monitor = this.monitor;
+            if (this._direction === Meta.MotionDirection.RIGHT)
+                x = monitor.x + monitor.width - (scale * clone.width);
+            else
+                x = monitor.x;
+            clone.set_position(x, y);
         });
 
         // uncomment to remove the preview after a timeout
@@ -308,110 +301,14 @@ var StackOverlay = class StackOverlay {
             delete this._removeId;
         }
 
-        this.animatePreviewOut();
-    }
-
-    /**
-     * Centralised method to instantly destroy preview (clone).
-     */
-    destroyClone() {
-        if (this.clone) {
-            this.clone.destroy();
-            this.clone = null;
-        }
-    }
-
-    /**
-     * Animates the window preview in from the side it was triggered on.
-     */
-    animatePreviewIn() {
-        let [x, y, mask] = global.get_pointer();
-        let actor = this.target.get_compositor_private();
-        let clone = new Clutter.Clone({source: actor, reactive: true});
-        this.clone = clone;
-
-        // on clone click, activate target and setup for next preview
-        this.signals.connectOneShot(clone, 'button-press-event', () => {
-            Main.activateWindow(this.target);
-            if (this.clone) {
-                this.animatePreviewOut();
-            }
-
-            // remove/cleanup the previous preview
-            this.removePreview();
-            Mainloop.timeout_add(200, () => {
-                // if pointer is still at edge (within some band), trigger preview
-                let edgeBand = 3;
-                let [x, y, mask] = global.get_pointer();
-                if (x <= edgeBand || x >= this.monitor.width - edgeBand) {
-                    this.triggerPreview();
-                }
-            });
-        });
-
-        // Remove any window clips, and show the metaWindow.clone's
-        actor.remove_clip();
-        Tiling.animateWindow(this.target);
-
-        // set clone parameters
-        let scale = 0.90;
-        let peek = 300; // number of pixels to "peek" in
-        clone.opacity = 255*0.95;
-        
-        clone.set_scale(scale, scale);
-        Main.uiGroup.add_actor(clone);
-        
-        let monitor = this.monitor;
-        let scaleWidth = scale * clone.width;
-        let startPosition; // position to place clone before animating in
-        if (this._direction === Meta.MotionDirection.RIGHT) {
-            startPosition = monitor.x + monitor.width;
-            x = startPosition - peek;
-        }
-        else {
-            startPosition = monitor.x - clone.width;
-            x = monitor.x - scaleWidth + peek;
-        }
-
-        // calculate y position - center of actor
-        y = actor.y + (clone.height * (1 - scale)) / 2;
-
-        // set position and animate in
-        clone.set_position(startPosition, y);
-        Tweener.addTween(clone, {
-            x, time: prefs.animation_time,
-        });
-    }
-
-    /**
-     * Animates the window preview out and destroys preview on completion.
-     */
-    animatePreviewOut() {
-        if (!this.clone) {
+        if (!this.clone)
             return;
-        }
-        
-        let clone = this.clone;
-        let monitor = this.monitor;
-        let x;
-        if (this._direction === Meta.MotionDirection.RIGHT) {
-            x = monitor.x + monitor.width;
-        }
-        else {
-            x = monitor.x - clone.width;
-        }
 
-        Tweener.addTween(this.clone, {
-            x, time: prefs.animation_time,
-            onComplete: () => {
-                this.destroyClone();
-                if (this.target) {
-                    // Show the WindowActors again and re-apply clipping
-                    let space = Tiling.spaces.spaceOfWindow(this.target);
-                    space.moveDone();
-                }
-            }
-        });
+        this.clone.destroy();
+        this.clone = null;
+        let space = Tiling.spaces.spaceOfWindow(this.target);
+        // Show the WindowActors again and re-apply clipping
+        space.moveDone();
     }
 
     removeBarrier() {
@@ -433,10 +330,8 @@ var StackOverlay = class StackOverlay {
             return;
 
         const Layout = imports.ui.layout;
-        this.pressureBarrier = new Layout.PressureBarrier(100, prefs.animation_time*1000, 
-            Shell.ActionMode.NORMAL);
-        
-            // Show the overlay on fullscreen windows when applying pressure to the edge
+        this.pressureBarrier = new Layout.PressureBarrier(100, 0.25*1000, Shell.ActionMode.NORMAL);
+        // Show the overlay on fullscreen windows when applying pressure to the edge
         // The above leave-event handler will take care of hiding the overlay
         this.pressureBarrier.connect('trigger', () => {
             this.pressureBarrier._reset();
@@ -469,7 +364,11 @@ var StackOverlay = class StackOverlay {
     }
 
     setTarget(space, index) {
-        this.animatePreviewOut();
+
+        if (this.clone) {
+            this.clone.destroy();
+            this.clone = null;
+        }
 
         let bail = () => {
             this.target = null;
