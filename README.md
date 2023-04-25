@@ -18,11 +18,9 @@ You can always view upstream submitted [issues and pull requests here](https://g
 
 PaperWM is an experimental [Gnome Shell](https://wiki.gnome.org/Projects/GnomeShell) extension providing scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
 
-~~Supports Gnome Shell from 3.28 to 43 on X11 and wayland.~~
+Supports Gnome Shell from 3.28 to 44 on X11 and wayland.
 
-> [PaperWM (redux)](https://github.com/PaperWM-redux/PaperWM) is focused on supporting the latest major Gnome release (currently [Gnome 43](https://release.gnome.org/43/)) on both X11 and wayland.  
->
-> It may work well with previous Gnome 40+ releases (and potentially previous Gnome releases like 3.xx etc.) but this hasn't thus far been tested in those releases.  If you use a previous release please let me know if [PaperWM (redux)](https://github.com/PaperWM-redux/PaperWM) is working well (or otherwise) in that Gnome release.</em>
+>**Note:** while PaperWM can be installed on a wide range of Gnome versions, fixes and new features, in general, aren't backported to prevous Gnome Shell versions.
 
 While technically an [extension](https://wiki.gnome.org/Projects/GnomeShell/Extensions) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
 
@@ -35,6 +33,12 @@ We hang out on [zulip](https://paperwm.zulipchat.com).
 For Arch-based distributions, you can install the [PaperWM-redux AUR](https://aur.archlinux.org/packages/gnome-shell-extension-paperwm-redux-git) package.
 
 _Note: the AUR package is git-based install package, so re-installing that package will always pull the latest from the PaperWM-redux [`develop`](https://github.com/PaperWM-redux/PaperWM/tree/develop) branch._
+
+- 44 (targeted for current support, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
+- 43 (targeted for current support, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
+- 42: https://github.com/paperwm/PaperWM/tree/gnome-42
+- 40: https://github.com/paperwm/PaperWM/tree/gnome-40
+- 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
 
 ### Install from source
 
