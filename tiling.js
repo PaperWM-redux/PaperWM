@@ -1399,8 +1399,12 @@ border-radius: ${borderWidth}px;
                 if (windowAtPoint) {
                     ensureViewport(windowAtPoint, this);
                     spaces.selectedSpace = this
-                    inGrab = new Extension.imports.grab.MoveGrab(windowAtPoint, Meta.GrabOp.MOVING, this);
-                    inGrab.begin();
+                    /**
+                     * disabled to address gnome-44 grab issues. Simple selection of window
+                     * should not execute a MoveGrab (avoid getting stuck in grab state).
+                     */
+                    //inGrab = new Extension.imports.grab.MoveGrab(windowAtPoint, Meta.GrabOp.MOVING, this);
+                    //inGrab.begin();
                 } else if (inPreview) {
                     spaces.selectedSpace = this;
                     Navigator.getNavigator().finish();
@@ -1666,11 +1670,12 @@ var Spaces = class Spaces extends Map {
 
         this.signals.connect(display, 'window-created',
                         this.window_created.bind(this));
+        
         this.signals.connect(display, 'grab-op-begin',
                         (display, mw, type) => grabBegin(mw, type));
         this.signals.connect(display, 'grab-op-end',
                         (display, mw, type) => grabEnd(mw, type));
-
+        
         this.signals.connect(Main.layoutManager, 'monitors-changed', this.monitorsChanged.bind(this));
 
         this.signals.connect(global.window_manager, 'switch-workspace',
@@ -3371,6 +3376,7 @@ function toggleMaximizeHorizontally(metaWindow) {
 }
 
 function resizeHInc(metaWindow) {
+    metaWindow = metaWindow || display.focus_window;
     let frame = metaWindow.get_frame_rect();
     let monitor = Main.layoutManager.monitors[metaWindow.get_monitor()];
     let space = spaces.spaceOfWindow(metaWindow);
@@ -3391,6 +3397,7 @@ function resizeHInc(metaWindow) {
 }
 
 function resizeHDec(metaWindow) {
+    metaWindow = metaWindow || display.focus_window;
     let frame = metaWindow.get_frame_rect();
     let monitor = Main.layoutManager.monitors[metaWindow.get_monitor()];
     let space = spaces.spaceOfWindow(metaWindow);
@@ -3412,6 +3419,7 @@ function resizeHDec(metaWindow) {
 }
 
 function resizeWInc(metaWindow) {
+    metaWindow = metaWindow || display.focus_window;
     let frame = metaWindow.get_frame_rect();
     let monitor = Main.layoutManager.monitors[metaWindow.get_monitor()];
     let space = spaces.spaceOfWindow(metaWindow);
@@ -3432,6 +3440,7 @@ function resizeWInc(metaWindow) {
 }
 
 function resizeWDec(metaWindow) {
+    metaWindow = metaWindow || display.focus_window;
     let frame = metaWindow.get_frame_rect();
     let monitor = Main.layoutManager.monitors[metaWindow.get_monitor()];
     let space = spaces.spaceOfWindow(metaWindow);

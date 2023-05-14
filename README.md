@@ -34,8 +34,8 @@ For Arch-based distributions, you can install the [PaperWM-redux AUR](https://au
 
 _Note: the AUR package is git-based install package, so re-installing that package will always pull the latest from the PaperWM-redux [`develop`](https://github.com/PaperWM-redux/PaperWM/tree/develop) branch._
 
-- 44 (targeted for current support, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
-- 43 (targeted for current support, please report bugs): https://github.com/paperwm/PaperWM/tree/develop
+- 44 (targeted for current support): https://github.com/paperwm/PaperWM/tree/develop
+- 43: https://github.com/paperwm/PaperWM/tree/gnome-43
 - 42: https://github.com/paperwm/PaperWM/tree/gnome-42
 - 40: https://github.com/paperwm/PaperWM/tree/gnome-40
 - 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
@@ -451,6 +451,8 @@ There's a few Gnome Shell settings which works poorly with PaperWM. Namely
   spanning all monitors
 - `edge-tiling`: We don't support the native half tiled windows
 - `attach-modal-dialogs`: Attached modal dialogs can cause visual glitching
+- `toggle-tiled-left`: Default GNOME keyboard shortcut `super+left` collides with a default PaperWM shortcut. We disable the GNOME shortcut
+- `toggle-tiled-right`: Default GNOME keyboard shortcut `super+right` collides with a default PaperWM shortcut. We disable the GNOME shortcut
 
 To use the recommended settings run
 [`set-recommended-gnome-shell-settings.sh`](https://github.com/paperwm/PaperWM/blob/master/set-recommended-gnome-shell-settings.sh). A "restore previous settings" script is generated so the original settings is not lost.
