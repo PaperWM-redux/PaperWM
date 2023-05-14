@@ -34,7 +34,7 @@ For Arch-based distributions, you can install the [PaperWM-redux AUR](https://au
 
 _Note: the AUR package is git-based install package, so re-installing that package will always pull the latest from the PaperWM-redux [`develop`](https://github.com/PaperWM-redux/PaperWM/tree/develop) branch._
 
-- 44 (targeted for current support): https://github.com/paperwm/PaperWM/tree/develop
+- 44 (targeted for current support): https://github.com/PaperWM-redux/PaperWM/tree/develop
 - 43: https://github.com/paperwm/PaperWM/tree/gnome-43
 - 42: https://github.com/paperwm/PaperWM/tree/gnome-42
 - 40: https://github.com/paperwm/PaperWM/tree/gnome-40
