@@ -20,7 +20,7 @@ PaperWM is an experimental [Gnome Shell](https://wiki.gnome.org/Projects/GnomeSh
 
 Supports Gnome Shell from 3.28 to 44 on X11 and wayland.
 
->**Note:** while PaperWM can be installed on a wide range of Gnome versions, new features aren't generally backported to prevous Gnome Shell versions.  Fixes may be backported on request (please submit a [new issue](https://github.com/paperwm/PaperWM/issues/new/choose) if you've identified a recent fix that should be backported and you can help with testing).
+>**Note:** while PaperWM can be installed on a wide range of Gnome versions, new features aren't generally backported to versions NOT targeted for current support (see [Installation](#installation) section).  Fixes may be backported on request (please submit a [new issue](https://github.com/paperwm/PaperWM/issues/new/choose) if you've identified a recent fix that should be backported and you can help with testing).
 
 While technically an [extension](https://wiki.gnome.org/Projects/GnomeShell/Extensions) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
 
@@ -34,15 +34,15 @@ For Arch-based distributions, you can install the [PaperWM-redux AUR](https://au
 
 _Note: the AUR package is git-based install package, so re-installing that package will always pull the latest from the PaperWM-redux [`develop`](https://github.com/PaperWM-redux/PaperWM/tree/develop) branch._
 
-- 44 (targeted for current support): https://github.com/PaperWM-redux/PaperWM/tree/develop
-- 43: https://github.com/paperwm/PaperWM/tree/gnome-43
-- 42: https://github.com/paperwm/PaperWM/tree/gnome-42
-- 40: https://github.com/paperwm/PaperWM/tree/gnome-40
-- 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
-
 ### Install from source
 
-Clone the repo and then run the [`install.sh`](https://github.com/PaperWM-redux/PaperWM/blob/develop/install.sh) script from the repository. The installer will create a link to the repo in
+Clone the repo and check out the branch supporting the Gnome Shell version you're running.
+
+- 42-44 (targeted for current support): https://github.com/paperwm/PaperWM/tree/develop
+- 40-41: https://github.com/paperwm/PaperWM/tree/gnome-40
+- 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
+
+Then run the [`install.sh`](https://github.com/PaperWM-redux/PaperWM/blob/develop/install.sh) script from the repository. The installer will create a link to the repo in
 `$XDG_DATA_HOME/gnome-shell/extensions/`. It will then ask if you want to apply
 the recommended settings (see [Recommended
 Settings](#recommended-gnome-shell-settings)) and lastly it will ask to enable PaperWM.
