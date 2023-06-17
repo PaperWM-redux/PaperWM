@@ -338,11 +338,13 @@ var winprops = [];
 function winprop_match_p(meta_window, prop) {
     let wm_class = meta_window.wm_class || "";
     let title = meta_window.title;
-    if (prop.wm_class instanceof RegExp) {
-        if (!wm_class.match(prop.wm_class))
+    if (prop.wm_class) {
+        if (prop.wm_class instanceof RegExp) {
+            if (!wm_class.match(prop.wm_class))
+                return false;
+        } else if (prop.wm_class !== wm_class) {
             return false;
-    } else if (prop.wm_class !== wm_class) {
-        return false;
+        }
     }
     if (prop.title) {
         if (prop.title instanceof RegExp) {
@@ -358,10 +360,20 @@ function winprop_match_p(meta_window, prop) {
 }
 
 function find_winprop(meta_window)  {
-    let props = winprops.filter(
-        winprop_match_p.bind(null, meta_window));
+    let props = winprops.filter(winprop_match_p.bind(null, meta_window));
 
-    return props[0];
+    // if matching props found, return first one
+    if (props.length > 0) {
+        return props[0];
+    }
+
+    // fall back, if star (catch-all) winprop exists, return the first one
+    let starProps = winprops.filter(w => w.wm_class === "*" || w.title === "*");
+    if (starProps.length > 0) {
+        return starProps[0];
+    }
+    
+    return null;
 }
 
 function defwinprop(spec) {
