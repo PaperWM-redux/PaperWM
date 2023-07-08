@@ -8,7 +8,6 @@ const Gdk = imports.gi.Gdk;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Extension = ExtensionUtils.getCurrentExtension();
-const Convenience = Extension.imports.convenience;
 const Settings = Extension.imports.settings;
 
 // TODO gettext translations
@@ -197,10 +196,10 @@ const Combo = GObject.registerClass({
         if (this.disabled) {
             return 0;
         } else if (!this._keycode) {
-            const keymap = Gdk.Keymap.get_for_display(Gdk.Display.get_default());
-            const [ok, keys] = keymap.get_entries_for_keyval();
-            if (ok && keys.length) {
-                return keys[0].keycode;
+            let [ok, key, mask] = Settings.accelerator_parse(this.keystr);
+
+            if (ok && key.length) {
+                return key;
             } else {
                 return 0;
             }
@@ -284,17 +283,15 @@ const Keybinding = GObject.registerClass({
             'True if this keybinding has any shortcuts',
             GObject.ParamFlags.READABLE,
             false
-        )
+        ),
     },
     Signals: {
-        changed: {}
-    }
+        changed: {},
+    },
 }, class Keybinding extends GObject.Object {
     _init(params = {}) {
         super._init(params);
-
-        this._settings = Convenience.getSettings(KEYBINDINGS_KEY);
-
+        this._settings = ExtensionUtils.getSettings(KEYBINDINGS_KEY);
         this._description = _(this._settings.settings_schema.get_key(this.action).get_summary());
 
         this._combos = new Gio.ListStore();
@@ -304,7 +301,6 @@ const Keybinding = GObject.registerClass({
         });
 
         this._settings.connect(`changed::${this.action}`, () => this._load());
-
         GLib.idle_add(0, () => this._load());
     }
 
@@ -410,7 +406,7 @@ const Keybinding = GObject.registerClass({
             .map(this._translateAboveTab)
             .map(keystr => {
                 if (keystr != '')
-                    return Gtk.accelerator_parse(keystr);
+                    return Settings.accelerator_parse(keystr);
                 else
                     return [true, 0, 0];
             })
@@ -471,9 +467,7 @@ var KeybindingsModel = GObject.registerClass({
         });
 
         this._actionToBinding = new Map();
-
-        this._settings = Convenience.getSettings(KEYBINDINGS_KEY);
-
+        this._settings = ExtensionUtils.getSettings(KEYBINDINGS_KEY);
         GLib.idle_add(0, () => { this.load(); });
     }
 
@@ -674,7 +668,8 @@ const ComboRow = GObject.registerClass({
     }
 
     _ungrabKeyboard() {
-        this.get_root().get_surface().restore_system_shortcuts();
+        // using optionals here since may have already been ungrabbed
+        this.get_root()?.get_surface()?.restore_system_shortcuts();
     }
 
     _onDeleteButtonClicked() {

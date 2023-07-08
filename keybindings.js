@@ -1,12 +1,9 @@
-var Extension;
-if (imports.misc.extensionUtils.extensions) {
-    Extension = imports.misc.extensionUtils.extensions["paperwm@paperwm-redux.github.com"];
-} else {
-    Extension = imports.ui.main.extensionManager.lookup("paperwm@paperwm-redux.github.com");
-}
+var ExtensionUtils = imports.misc.extensionUtils;
+var Extension = ExtensionUtils.getCurrentExtension();
+var ExtensionModule = Extension.imports.extension;
 
-var Me = Extension.imports.keybindings;
-var Gdk = imports.gi.Gdk;
+var Clutter = imports.gi.Clutter;
+var Seat = Clutter.get_default_backend().get_default_seat();
 var Gtk = imports.gi.Gtk;
 var Gio = imports.gi.Gio;
 var Meta = imports.gi.Meta;
@@ -16,12 +13,14 @@ var Utils = Extension.imports.utils;
 var Main = imports.ui.main;
 var Shell = imports.gi.Shell;
 
-var convenience = Extension.imports.convenience;
 var Settings = Extension.imports.settings;
 var keystrToKeycombo = Settings.keystrToKeycombo;
 
 var Navigator = Extension.imports.navigator;
 var Tiling = Extension.imports.tiling;
+var LiveAltTab = Extension.imports.liveAltTab;
+var Scratch = Extension.imports.scratch;
+var App = Extension.imports.app;
 
 var display = global.display;
 
@@ -29,7 +28,7 @@ var KEYBINDINGS_KEY = 'org.gnome.Shell.Extensions.PaperWM.Keybindings';
 
 
 function registerPaperAction(actionName, handler, flags) {
-    let settings = convenience.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
+    let settings = ExtensionUtils.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
     registerAction(
         actionName,
         handler,
@@ -37,7 +36,7 @@ function registerPaperAction(actionName, handler, flags) {
 }
 
 function registerNavigatorAction(name, handler) {
-    let settings = convenience.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
+    let settings = ExtensionUtils.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
     registerAction(
         name,
         handler,
@@ -45,7 +44,7 @@ function registerNavigatorAction(name, handler) {
 }
 
 function registerMinimapAction(name, handler) {
-    let settings = convenience.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
+    let settings = ExtensionUtils.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
     registerAction(
         name,
         handler,
@@ -60,7 +59,7 @@ function registerMinimapAction(name, handler) {
 
 
 var signals, actions, nameMap, actionIdMap, keycomboMap, overrides, conflictSettings;
-function init() {
+function startup() {
     signals = new Utils.Signals();
     actions = [];
     nameMap = {};     // mutter keybinding action name -> action
@@ -69,17 +68,12 @@ function init() {
     overrides = [];   // action names that have been given a custom handler
 
     /* Initialize keybindings */
-    let Tiling = Extension.imports.tiling;
-    let LiveAltTab = Extension.imports.liveAltTab;
-    let Scratch = Extension.imports.scratch;
-    let App = Extension.imports.app;
-
     let dynamic_function_ref = Utils.dynamic_function_ref;
 
     let liveAltTab = dynamic_function_ref('liveAltTab', LiveAltTab);
     let previewNavigate = dynamic_function_ref("preview_navigate", Navigator);
 
-    let settings = convenience.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
+    let settings = ExtensionUtils.getSettings('org.gnome.Shell.Extensions.PaperWM.Keybindings');
     registerAction('live-alt-tab',
                    liveAltTab, {settings});
     registerAction('live-alt-tab-backward',
@@ -254,23 +248,10 @@ function byId(mutterId) {
     return actionIdMap[mutterId];
 }
 
-/**
- * Adapts an paperwm action handler to mutter's keybinding handler signature
- *
- * Works for 3.28 and 3.30
- */
-var asKeyHandler;
-if (global.screen) {
-    asKeyHandler = (actionHandler) =>
-        (display, screen, mw, binding) => {
-            return actionHandler(mw, Tiling.spaces.selectedSpace, {display, screen, binding});
-        };
-} else {
-    asKeyHandler = (actionHandler) =>
-        (display, mw, binding) => {
-            return actionHandler(mw, Tiling.spaces.selectedSpace, {display, binding});
-        };
-}
+var asKeyHandler = (actionHandler) =>
+    (display, mw, binding) => {
+        return actionHandler(mw, Tiling.spaces.selectedSpace, { display, binding });
+    };
 
 function impliedOptions(options) {
     options = options = Object.assign({mutterFlags: Meta.KeyBindingFlags.NONE}, options);
@@ -344,7 +325,7 @@ function bindkey(keystr, actionName=null, handler=null, options={}) {
     } else {
         let boundAction = keycomboMap[keycombo];
         if (boundAction && boundAction != action) {
-            print("Rebinding", keystr, "to", actionName, "from", boundAction.name);
+            log("Rebinding", keystr, "to", actionName, "from", boundAction.name);
             disableAction(boundAction)
         }
 
@@ -380,7 +361,7 @@ function bindkey(keystr, actionName=null, handler=null, options={}) {
             message = "Usually caused by the binding already being taken, but could not identify which action";
         }
 
-        Extension.imports.extension.errorNotification(
+        ExtensionModule.errorNotification(
             "PaperWM (user.js): Could not enable keybinding",
             `Tried to bind ${keystr} to ${actionName}\n${message}`);
     }
@@ -401,7 +382,7 @@ function unbindkey(actionIdOrKeystr) {
 }
 
 function devirtualizeMask(gdkVirtualMask) {
-    const keymap = Gdk.Keymap.get_default();
+    const keymap = Seat.get_keymap();
     let [success, rawMask] = keymap.map_virtual_modifiers(gdkVirtualMask);
     if (!success)
         throw new Error("Couldn't devirtualize mask " + gdkVirtualMask);
@@ -436,7 +417,7 @@ function getActionIdByActionName(actionName) {
         try {
             return parseInt(e.message.split(" ")[0]);
         } catch(e2) {
-            print("Could not find actionId for", actionName);
+            log("Could not find actionId for", actionName);
             return Meta.KeyBindingAction.NONE;
         }
     }
@@ -708,16 +689,17 @@ function resetConflicts() {
 }
 
 function enable() {
+    startup();
     let schemas = [...Settings.conflictSettings,
-                   convenience.getSettings(KEYBINDINGS_KEY)];
+    ExtensionUtils.getSettings(KEYBINDINGS_KEY)];
     schemas.forEach(schema => {
         signals.connect(schema, 'changed', resolveConflicts);
     });
-
+    
     signals.connect(
         display,
         'accelerator-activated',
-        Utils.dynamic_function_ref(handleAccelerator.name, Me)
+        Utils.dynamic_function_ref(handleAccelerator.name, this)
     );
     actions.forEach(enableAction);
     resolveConflicts(schemas);
@@ -727,4 +709,10 @@ function disable() {
     signals.destroy();
     actions.forEach(disableAction);
     resetConflicts();
+
+    actions = null;
+    nameMap = null;
+    actionIdMap = null;
+    keycomboMap = null;
+    overrides = null;
 }

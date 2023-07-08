@@ -1,20 +1,13 @@
-var Extension;
-if (imports.misc.extensionUtils.extensions) {
-    Extension = imports.misc.extensionUtils.extensions["paperwm@paperwm-redux.github.com"];
-} else {
-    Extension = imports.ui.main.extensionManager.lookup("paperwm@paperwm-redux.github.com");
-}
-
+var Extension = imports.misc.extensionUtils.getCurrentExtension();
 var Tiling = Extension.imports.tiling;
 var Clutter = imports.gi.Clutter;
-var Tweener = Extension.imports.utils.tweener;
 var Main = imports.ui.main;
 var Mainloop = imports.mainloop;
 var Shell = imports.gi.Shell;
 var Meta = imports.gi.Meta;
 var utils = Extension.imports.utils;
-var debug = utils.debug;
-var Minimap = Extension.imports.minimap;
+var Layout = imports.ui.layout;
+
 
 var Settings = Extension.imports.settings;
 var prefs = Settings.prefs;
@@ -95,6 +88,7 @@ var ClickOverlay = class ClickOverlay {
                 this._lastPointer = [x, y];
                 Mainloop.timeout_add(500, () => {
                     this._lastPointer = [];
+                    return false; // on return false destroys timeout
                 });
                 if (lX === undefined ||
                     Math.sqrt((lX - x)**2 + (lY - y)**2) < 10)
@@ -129,8 +123,8 @@ var ClickOverlay = class ClickOverlay {
         let display = global.display;
         let mi = space.monitor.index;
         let mru = display.get_tab_list(Meta.TabList.NORMAL,
-                                       space.workspace)
-                         .filter(w => !w.minimized && w.get_monitor() === mi);
+            space.workspace)
+            .filter(w => !w.minimized && w.get_monitor() === mi);
 
         let stack = display.sort_windows_by_stacking(mru);
         // Select the highest stacked window on the monitor
@@ -236,8 +230,8 @@ var StackOverlay = class StackOverlay {
                 if (x <= 2 || x >= this.monitor.width - 2) {
                     this.triggerPreview.bind(this)();
                 }
+                return false; // on return false destroys timeout
             });
-            return true;
         });
 
         this.signals.connect(overlay, 'enter-event', this.triggerPreview.bind(this));
@@ -266,6 +260,7 @@ var StackOverlay = class StackOverlay {
             }
 
             this.showPreview();
+            return false;
         });
 
         // uncomment to remove the preview after a timeout
@@ -361,6 +356,7 @@ var StackOverlay = class StackOverlay {
             this.barrier = null;
         }
         this._removeBarrierTimeoutId = 0;
+        return false;
     }
 
     updateBarrier(force) {
@@ -370,7 +366,6 @@ var StackOverlay = class StackOverlay {
         if (this.barrier || !prefs.pressure_barrier)
             return;
 
-        const Layout = imports.ui.layout;
         this.pressureBarrier = new Layout.PressureBarrier(100, 0.25*1000, Shell.ActionMode.NORMAL);
         // Show the overlay on fullscreen windows when applying pressure to the edge
         // The above leave-event handler will take care of hiding the overlay
@@ -420,7 +415,7 @@ var StackOverlay = class StackOverlay {
         }
 
         let mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL,
-                                              space.workspace);
+            space.workspace);
         let column = space[index];
         this.target = mru.filter(w => column.includes(w))[0];
         let metaWindow = this.target;
@@ -448,7 +443,7 @@ var StackOverlay = class StackOverlay {
                 width = Math.min(width, 1);
             overlay.x = this.monitor.x;
             overlay.width = Math.max(width, 1);
-            overlay.raise(neighbour.get_compositor_private());
+            utils.actor_raise(overlay, neighbour.get_compositor_private());
         } else {
             let column = space[space.indexOf(metaWindow) - 1];
             let neighbour = column &&
@@ -464,7 +459,7 @@ var StackOverlay = class StackOverlay {
             width = Math.max(width, 1);
             overlay.x = this.monitor.x + this.monitor.width - width;
             overlay.width = width;
-            overlay.raise(neighbour.get_compositor_private());
+            utils.actor_raise(overlay, neighbour.get_compositor_private());
         }
 
         if (space.selectedWindow.fullscreen || space.selectedWindow.maximized_vertically)

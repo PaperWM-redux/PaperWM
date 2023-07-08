@@ -1,32 +1,14 @@
-var Extension;
-if (imports.misc.extensionUtils.extensions) {
-    Extension = imports.misc.extensionUtils.extensions["paperwm@paperwm-redux.github.com"];
-} else {
-    Extension = imports.ui.main.extensionManager.lookup("paperwm@paperwm-redux.github.com");
-}
-
-var GLib = imports.gi.GLib;
-var Tweener = Extension.imports.utils.tweener;
-/** @type {import("@gi-types/meta")} */
-var Meta = imports.gi.Meta;
-/** @type {import("@gi-types/clutter10")} */
-var Clutter = imports.gi.Clutter;
-/** @type {import("@gi-types/st")} */
-var St = imports.gi.St;
-/** @type {import("@gi-types/st")} */
+var ExtensionUtils = imports.misc.extensionUtils;
+var Extension = ExtensionUtils.getCurrentExtension();
+var {Clutter, St, Graphene, GLib, Meta, Gio} = imports.gi;
+var Easer = Extension.imports.utils.easer;
 var Main = imports.ui.main;
-/** @type {import("@gi-types/shell")} */
-var Shell = imports.gi.Shell;
-var Gio = imports.gi.Gio;
 var Mainloop = imports.mainloop;
 var Signals = imports.signals;
 var utils = Extension.imports.utils;
 var debug = utils.debug;
 
-/** @type {import('@gi-types/meta').Stage} */
-const stage = global.stage
-
-var Gdk = imports.gi.Gdk;
+var GDesktopEnums = imports.gi.GDesktopEnums;
 
 /**@type {import('@gi-types/meta').WorkspaceManager} */
 var workspaceManager = global.workspace_manager;
@@ -35,23 +17,14 @@ var display = global.display;
 /** @type {Spaces} */
 var spaces;
 
-var Minimap = Extension.imports.minimap;
 var Scratch = Extension.imports.scratch;
 var Gestures = Extension.imports.gestures;
 var TopBar = Extension.imports.topbar;
 var Navigator = Extension.imports.navigator;
 var ClickOverlay = Extension.imports.stackoverlay.ClickOverlay;
 var Settings = Extension.imports.settings;
-var Me = Extension.imports.tiling;
 
 var prefs = Settings.prefs;
-
-var backgroundSettings = new Gio.Settings({
-    schema_id: 'org.gnome.desktop.background'
-})
-var interfaceSettings = new Gio.Settings({
-    schema_id: "org.gnome.desktop.interface",
-});
 
 var borderWidth = 8;
 // Mutter prevints windows from being placed further off the screen than 75 pixels.
@@ -65,22 +38,6 @@ var inPreview = PreviewMode.NONE;
 
 // DEFAULT mode is normal/original PaperWM window focus behaviour
 var FocusModes = {DEFAULT: 0, CENTER: 1};
-
-var signals, oldSpaces, backgroundGroup, oldMonitors, WindowCloneLayout, grabSignals;
-function init() {
-    // Symbol to retrieve the focus handler id
-    signals = new utils.Signals();
-    grabSignals = new utils.Signals();
-    oldSpaces = new Map();
-    oldMonitors = new Map();
-
-    backgroundGroup = Main.layoutManager._backgroundGroup;
-
-    // connect to settings and update winprops array when it's updated
-    Settings.settings.connect('changed::winprops', () => {
-        Settings.reloadWinpropsFromGSettings();
-    });
-}
 
 /**
    Scrolled and tiled per monitor workspace.
@@ -230,7 +187,7 @@ var Space = class Space extends Array {
             style_class: 'paperwm-window-position-bar tile-preview'
         });
         this.windowPositionBar.hide(); // default on empty space
-        this.windowPositionBar.raise_top();
+        utils.actor_raise(this.windowPositionBar);
         if (prefs.show_window_position_bar) {
             this.enableWindowPositionBar();
         }
@@ -272,8 +229,8 @@ var Space = class Space extends Array {
             ensureViewport(selected, this, { force:true });
         }
 
-        this.signals.connect(workspace, "window-added", utils.dynamic_function_ref("add_handler", Me));
-        this.signals.connect(workspace, "window-removed", utils.dynamic_function_ref("remove_handler", Me));
+        this.signals.connect(workspace, "window-added", utils.dynamic_function_ref("add_handler", Extension.imports.tiling));
+        this.signals.connect(workspace, "window-removed", utils.dynamic_function_ref("remove_handler", Extension.imports.tiling));
         this.signals.connect(Main.overview, 'showing', this.startAnimate.bind(this));
         this.signals.connect(Main.overview, 'hidden', this.moveDone.bind(this, (window) => {
             // after moveDone, ensureViewport on display.focus_window (see moveDone function)
@@ -284,8 +241,7 @@ var Space = class Space extends Array {
             setFocusMode(Settings.getDefaultFocusMode(), this);
         });
         
-        const Convenience = Extension.imports.convenience;
-        const settings = Convenience.getSettings();
+        const settings = ExtensionUtils.getSettings();
         this.signals.connect(interfaceSettings, "changed::color-scheme", this.updateBackground.bind(this));
 
         this.signals.connect(settings, 'changed::default-background', this.updateBackground.bind(this));
@@ -433,7 +389,6 @@ var Space = class Space extends Array {
             let c = mw.clone;
             if (c.x !== x || c.targetX !== x ||
                 c.y !== y || c.targetY !== y) {
-
                 // log("  Position window", mw.title, `y: ${c.targetY} -> ${y} x: ${c.targetX} -> ${x}`);
                 c.targetX = x;
                 c.targetY = y;
@@ -441,7 +396,7 @@ var Space = class Space extends Array {
                     c.x = x;
                     c.y = y;
                 } else {
-                    Tweener.addTween(c, {
+                    Easer.addEase(c, {
                         x, y,
                         time,
                         onComplete: this.moveDone.bind(this)
@@ -553,7 +508,7 @@ var Space = class Space extends Array {
             } else if (this.targetX > workArea.min ) {
                 this.targetX = workArea.x;
             }
-            Tweener.addTween(this.cloneContainer,
+            Easer.addEase(this.cloneContainer,
                              { x: this.targetX,
                                time,
                                onComplete: this.moveDone.bind(this)
@@ -573,7 +528,7 @@ var Space = class Space extends Array {
             return;
 
         this._layoutQueued = true;
-        Meta.later_add(Meta.LaterType.RESIZE, () => {
+        utils.later_add(Meta.LaterType.RESIZE, () => {
             this._layoutQueued = false;
             this.layout();
         });
@@ -683,7 +638,7 @@ var Space = class Space extends Array {
          */
         this.signals.connect(metaWindow, 'position-changed', (w) => {
             if (inGrab)
-                return
+                return;
             let f = w.get_frame_rect();
             let clone = w.clone;
             let x = this.visibleX(w);
@@ -695,7 +650,7 @@ var Space = class Space extends Array {
             }
         });
 
-        metaWindow.clone.reparent(this.cloneContainer);
+        utils.actor_reparent(metaWindow.clone, this.cloneContainer);
 
         // Make sure the cloneContainer is in a clean state (centered) before layout
         if (this.length === 1) {
@@ -761,7 +716,7 @@ var Space = class Space extends Array {
             return false;
         this._floating.push(metaWindow);
         let clone = metaWindow.clone;
-        clone.reparent(this.actor);
+        utils.actor_reparent(clone, this.actor);
         return true;
     }
 
@@ -962,7 +917,7 @@ var Space = class Space extends Array {
 
             // Guard against races between move_to and layout
             // eg. moving can kill ongoing resize on wayland
-            if (Tweener.isTweening(w.clone))
+            if (Easer.isEasing(w.clone))
                 return;
 
             let unMovable = w.fullscreen ||
@@ -983,7 +938,7 @@ var Space = class Space extends Array {
         });
 
         this.visible.forEach(w => {
-            if (Tweener.isTweening(w.clone))
+            if (Easer.isEasing(w.clone))
                 return;
             let actor = w.get_compositor_private();
 
@@ -1186,7 +1141,7 @@ border-radius: ${borderWidth}px;
     updateBackground() {
         let path = this.settings.get_string('background') || prefs.default_background;
         let useDefault = Settings.settings.get_boolean('use-default-background');
-        const BackgroundStyle = imports.gi.GDesktopEnums.BackgroundStyle;
+        const BackgroundStyle = GDesktopEnums.BackgroundStyle;
         let style = BackgroundStyle.ZOOM;
         if (!path && useDefault) {
             if (interfaceSettings.get_string("color-scheme") === "default") {
@@ -1259,7 +1214,7 @@ border-radius: ${borderWidth}px;
         if (!prefs.show_window_position_bar) {
             return;
         }
-        
+
         // space has a fullscreen window, hide window position bar
         if (this.hasFullScreenWindow()) {
             this.showWindowPositionBar(false);
@@ -1272,7 +1227,7 @@ border-radius: ${borderWidth}px;
 
         // show space duplicate elements if not primary monitor
         if (!this.hasTopBar()) {
-            this.workspaceIndicator.raise_top();
+            utils.actor_raise(this.workspaceIndicator);
             this.workspaceLabel.show();
         }
 
@@ -1284,7 +1239,7 @@ border-radius: ${borderWidth}px;
         } else {
             this.windowPositionBar.show();
         }
-        
+
         let width = this.monitor.width;
         this.windowPositionBarBackdrop.width = width;
         let segments = width / cols;
@@ -1327,11 +1282,11 @@ border-radius: ${borderWidth}px;
 
     /**
      * Shows the workspace indicator space element.
-     * @param {boolean} show 
+     * @param {boolean} show
      */
-    showWorkspaceIndicator(show=true) {
+    showWorkspaceIndicator(show = true) {
         if (show && prefs.show_workspace_indicator) {
-            this.workspaceIndicator.raise_top();
+            utils.actor_raise(this.workspaceIndicator);
             this.workspaceIndicator.show();
         } else {
             this.workspaceIndicator.hide();
@@ -1340,11 +1295,11 @@ border-radius: ${borderWidth}px;
 
     /**
      * Shows the focusModeIcon space element.
-     * @param {boolean} show 
+     * @param {boolean} show
      */
-    showFocusModeIcon(show=true) {
+    showFocusModeIcon(show = true) {
         if (show && prefs.show_focus_mode_icon) {
-            this.focusModeIcon.raise_top();
+            utils.actor_raise(this.focusModeIcon);
             this.focusModeIcon.show();
         } else {
             this.focusModeIcon.hide();
@@ -1358,21 +1313,20 @@ border-radius: ${borderWidth}px;
         }
 
         let monitor = this.monitor;
-        const GDesktopEnums = imports.gi.GDesktopEnums;
-        let backgroundParams = global.screen ?
-            { meta_screen: global.screen } :
-            { meta_display: display };
+        let backgroundParams = global.screen
+            ? {meta_screen: global.screen}
+            : {meta_display: display};
 
         let metaBackground = new Meta.Background(backgroundParams);
         // gnome-shell 3.38
         if (Meta.BackgroundActor.prototype.set_background) {
-            backgroundParams.background = metaBackground
+            backgroundParams.background = metaBackground;
         }
         this.background = new Meta.BackgroundActor(
             Object.assign({
                 name: "background",
                 monitor: monitor.index,
-                reactive: true // Disable the background menu
+                reactive: true, // Disable the background menu
             }, backgroundParams)
         );
 
@@ -1413,11 +1367,6 @@ border-radius: ${borderWidth}px;
                 let dir = event.get_scroll_direction();
                 if (dir === Clutter.ScrollDirection.SMOOTH)
                     return;
-                // print(dir, Clutter.ScrollDirection.SMOOTH, Clutter.ScrollDirection.UP, Clutter.ScrollDirection.DOWN)
-                let dx
-                // log(utils.ppEnumValue(dir, Clutter.ScrollDirection))
-                // let dx = dir === Clutter.ScrollDirection.DOWN ? -1 : 1
-                // let [dx, dy] = event.get_scroll_delta()
 
                 let [gx, gy] = event.get_coords();
                 if (!gx) {
@@ -1434,8 +1383,6 @@ border-radius: ${borderWidth}px;
                         this.switchRight();
                         break;
                 }
-                // spaces.selectedSpace = this;
-                // nav.finish();
             });
 
         this.signals.connect(
@@ -1462,10 +1409,10 @@ border-radius: ${borderWidth}px;
 
         let time = animate ? prefs.animation_time : 0;
 
-        Tweener.addTween(this.actor,
+        Easer.addEase(this.actor,
                         {x: 0, y: 0, scale_x: 1, scale_y: 1,
                          time});
-        Tweener.addTween(clip,
+        Easer.addEase(clip,
                          {scale_x: 1, scale_y: 1, time});
 
         clip.set_position(monitor.x, monitor.y);
@@ -1598,16 +1545,16 @@ border-radius: ${borderWidth}px;
         this.cloneContainer = null;
         let workspace = this.workspace;
     }
-}
-Signals.addSignalMethods(Space.prototype);
+};
 
+Signals.addSignalMethods(Space.prototype);
 
 var StackPositions = {
     top: 0.01,
     up: 0.035,
     selected: 0.1,
     down: 0.95,
-    bottom: 1.1
+    bottom: 1.1,
 };
 
 /**
@@ -1705,6 +1652,7 @@ var Spaces = class Spaces extends Map {
                 space.layout(false);
                 Main.activateWindow(space.selectedWindow);
             }
+            return false; // on return false destroys timeout
         });
 
         this.stack = this.mru();
@@ -1754,19 +1702,22 @@ var Spaces = class Spaces extends Map {
             this.monitors.set(activeSpace.monitor, activeSpace);
             for (let [monitor, space] of this.monitors) {
                 space.show();
-                space.clip.raise_top();
+                utils.actor_raise(space.clip);
             }
             this.forEach(space => {
                 space.layout(false);
                 let selected = space.selectedWindow;
                 if (selected) {
-                    ensureViewport(selected, space, { force:true });
+                    ensureViewport(selected, space, {force: true});
                 }
             });
             this.spaceContainer.show();
 
             Mainloop.timeout_add(
-                20, () => { this._monitorsChanging = false; });
+                20, () => {
+                    this._monitorsChanging = false;
+                    return false; // on return false destroys timeout
+                });
 
             activeSpace.monitor.clickOverlay.deactivate();
         };
@@ -2016,7 +1967,7 @@ var Spaces = class Spaces extends Map {
      */
     updateSpaceIconPositions() {
         // get positions of topbar elements to replicate positions in spaces
-        const vertex = new Clutter.Vertex({ x: 0, y: 0 });
+        const vertex = new Graphene.Point3D({ x: 0, y: 0 });
         const labelPosition = TopBar.menu.label.apply_relative_transform_to_point(Main.panel, vertex);
         const focusPosition = TopBar.focusButton.apply_relative_transform_to_point(Main.panel, vertex);
 
@@ -2056,7 +2007,7 @@ var Spaces = class Spaces extends Map {
             space.setMonitor(currentMonitor, false);
             space.startAnimate();
 
-            Tweener.removeTweens(space.border);
+            Easer.removeEase(space.border);
             space.border.opacity = 255;
             space.border.show();
 
@@ -2065,13 +2016,13 @@ var Spaces = class Spaces extends Map {
             let padding = (space.height * scale / 100) * padding_percentage;
             let y = ((space.height + padding) * (i - to)) * scale;
             if (animate) {
-                Tweener.addTween(space.actor, {
+                Easer.addEase(space.actor, {
                     time: prefs.animation_time,
                     y, scale_y: scale, scale_x: scale,
                 });
             } else {
                 // Remove any lingering onComplete handlers from animateToSpace
-                Tweener.removeTweens(space.actor);
+                Easer.removeEase(space.actor);
 
                 space.actor.y = y;
                 space.actor.scale_y = scale;
@@ -2100,7 +2051,7 @@ var Spaces = class Spaces extends Map {
 
         let selected = this.selectedSpace.selectedWindow;
         if (selected && selected.fullscreen) {
-            Tweener.addTween(selected.clone, {
+            Easer.addEase(selected.clone, {
                 y: Main.panel.actor.height + prefs.vertical_margin,
                 time: prefs.animation_time,
             });
@@ -2142,7 +2093,7 @@ var Spaces = class Spaces extends Map {
         if (to < 0 || to >= monitorSpaces.length)
             return;
 
-        if (to === from && Tweener.isTweening(newSpace.actor))
+        if (to === from && Easer.isEasing(newSpace.actor))
             return;
 
         newSpace = monitorSpaces[to];
@@ -2166,7 +2117,7 @@ var Spaces = class Spaces extends Map {
             }
 
             space.show();
-            Tweener.addTween(space.actor, {
+            Easer.addEase(space.actor, {
                 y: space_y,
                 time: prefs.animation_time,
                 scale_x: scale,
@@ -2209,7 +2160,7 @@ var Spaces = class Spaces extends Map {
                 space.setMonitor(monitor);
             }
 
-            Tweener.removeTweens(space.border);
+            Easer.removeEase(space.border);
             space.border.opacity = 255;
             space.border.show();
 
@@ -2234,7 +2185,7 @@ var Spaces = class Spaces extends Map {
             space.actor.scale_x = scale - i*0.01;
 
             // Remove any lingering onComplete handlers from animateToSpace
-            Tweener.removeTweens(space.actor);
+            Easer.removeEase(space.actor);
 
             if (mru[i - 1] === undefined)
                 return;
@@ -2252,7 +2203,7 @@ var Spaces = class Spaces extends Map {
 
         let selected = space.selectedWindow;
         if (selected && selected.fullscreen) {
-            Tweener.addTween(selected.clone, {
+            Easer.addEase(selected.clone, {
                 y: Main.panel.actor.height + prefs.vertical_margin,
                 time: prefs.animation_time,
             });
@@ -2298,7 +2249,7 @@ var Spaces = class Spaces extends Map {
             to = 0;
         }
 
-        if (to === from && Tweener.isTweening(newSpace.actor))
+        if (to === from && Easer.isEasing(newSpace.actor))
             return;
 
         newSpace = mru[to];
@@ -2326,7 +2277,7 @@ var Spaces = class Spaces extends Map {
                 space.show();
             }
 
-            Tweener.addTween(actor,
+            Easer.addEase(actor,
                              {y: h*space.height,
                               time: prefs.animation_time,
                               scale_x: scale + (to - i)*0.01,
@@ -2369,7 +2320,7 @@ var Spaces = class Spaces extends Map {
                 }
             }
 
-            Tweener.addTween(to.border, {
+            Easer.addEase(to.border, {
                 opacity: 0,
                 time: prefs.animation_time,
                 onComplete: () => {
@@ -2377,7 +2328,7 @@ var Spaces = class Spaces extends Map {
                     to.border.opacity = 255;
                 }
             });
-            to.clip.raise_top();
+            utils.actor_raise(to.clip);
 
             // Fixes a weird bug where mouse input stops
             // working after mousing to another monitor on
@@ -2406,7 +2357,7 @@ var Spaces = class Spaces extends Map {
 
         this._updateMonitor();
 
-        Tweener.addTween(to.actor,
+        Easer.addEase(to.actor,
                          { x: 0,
                            y: 0,
                            scale_x: 1,
@@ -2423,7 +2374,7 @@ var Spaces = class Spaces extends Map {
         while (above) {
             let space = above.space;
             if (!visible.get(space)) {
-                Tweener.addTween(space.actor,
+                Easer.addEase(space.actor,
                     {
                         x: 0, y: space.height + 20,
                         time: prefs.animation_time,
@@ -2526,23 +2477,7 @@ var Spaces = class Spaces extends Map {
 
         debug('window-created', metaWindow.title);
         let actor = metaWindow.get_compositor_private();
-
-        if (utils.version[1] < 34 || utils.version[1] >= 40) {
-            animateWindow(metaWindow);
-        } else {
-            /* HACK 3.34: Hidden actors aren't allocated if hidden, use opacity
-               instead to fix new window animations.
-
-               The first draw will reset the opacity it seems (but not visible).
-               So even if we set it again in `first-frame` that is too late
-               since that happens _after_ mutter have drawn the frame.
-
-               So we kill visibily on the first `queue-redraw`.
-            */
-            signals.connectOneShot(actor, 'queue-redraw', () =>  {
-                actor.opacity = 0;
-            });
-        }
+        animateWindow(metaWindow);
 
         /*
           We need reliable `window_type`, `wm_class` et. all to handle window insertion correctly.
@@ -2761,8 +2696,30 @@ function resizeHandler(metaWindow) {
     }
 }
 
+var backgroundSettings, interfaceSettings;
+var signals, backgroundGroup, grabSignals;
+var oldSpaces = new Map();
+var oldMonitors = new Map();
 function enable(errorNotification) {
     debug('#enable');
+
+    backgroundSettings = new Gio.Settings({
+        schema_id: 'org.gnome.desktop.background',
+    });
+    interfaceSettings = new Gio.Settings({
+        schema_id: "org.gnome.desktop.interface",
+    });
+
+    signals = new utils.Signals();
+    grabSignals = new utils.Signals();
+
+    backgroundGroup = Main.layoutManager._backgroundGroup;
+
+    // connect to settings and update winprops array when it's updated
+    Settings.settings.connect('changed::winprops', () => {
+        Settings.reloadWinpropsFromGSettings();
+    });
+
     spaces = new Spaces();
 
     function initWorkspaces() {
@@ -2782,10 +2739,13 @@ function enable(errorNotification) {
             s.selectedWindow && ensureViewport(s.selectedWindow, s, { force:true });
             s.monitor.clickOverlay.show();
         });
-        TopBar.fixTopBar()
+        TopBar.fixTopBar();
 
         // run a final layout for multi-monitor topbar and window position indicator init
-        Mainloop.timeout_add(200, () => spaces.forEach(s => s.layout(false)));
+        Mainloop.timeout_add(200, () => {
+            spaces.forEach(s => s.layout(false));
+            return false; // on return false destroys timeout
+        });
     }
 
     if (Main.layoutManager._startingUp) {
@@ -2796,12 +2756,16 @@ function enable(errorNotification) {
     } else {
         // NOTE: this needs to happen after kludges.enable() have run, so we do
         // it in a timeout
-        Mainloop.timeout_add(0, initWorkspaces);
+        Mainloop.timeout_add(0, () => {
+            initWorkspaces();
+            return false; // on return false destroys timeout
+        });
     }
 }
 
 function disable () {
     signals.destroy();
+    grabSignals.destroy();
     spaces.destroy();
 
     oldSpaces.forEach(space => {
@@ -2817,6 +2781,10 @@ function disable () {
             windows[i].lower();
         }
     });
+
+    backgroundGroup = null;
+    backgroundSettings = null;
+    interfaceSettings = null;
 }
 
 /**
@@ -2983,7 +2951,7 @@ function insertWindow(metaWindow, {existing}) {
     let ok, x, y;
     // Figure out the matching coordinates before the clone is reparented.
     if (isWindowAnimating(metaWindow)) {
-        let point = clone.apply_transform_to_point(new Clutter.Vertex({x: 0, y: 0}));
+        let point = clone.apply_transform_to_point(new Graphene.Point3D({x: 0, y: 0}));
         [ok, x, y] = space.cloneContainer.transform_stage_point(point.x, point.y);
     } else {
         let frame = metaWindow.get_frame_rect();
@@ -3013,7 +2981,7 @@ function insertWindow(metaWindow, {existing}) {
         clone.y = clone.targetY;
         clone.set_scale(0, 1);
         space.hideSelection();
-        Tweener.addTween(clone, {
+        Easer.addEase(clone, {
             scale_x: 1,
             scale_y: 1,
             time: prefs.animation_time,
@@ -3042,7 +3010,7 @@ function animateDown(metaWindow) {
     let frame = metaWindow.get_frame_rect();
     let buffer = metaWindow.get_buffer_rect();
     let clone = metaWindow.clone;
-    Tweener.addTween(metaWindow.clone, {
+    Easer.addEase(metaWindow.clone, {
         y:  workArea.y,
         time: prefs.animation_time,
     });
@@ -3129,7 +3097,7 @@ function ensureViewport(meta_window, space, options={}) {
         if (!space.isVisible(selected)) {
             selected.clone.y = y;
         } else if (!ty || ty.get_interval().final !== y) {
-            Tweener.addTween(selected.clone,
+            Easer.addEase(selected.clone,
                              { y: y,
                                time: prefs.animation_time,
                                onComplete: space.moveDone.bind(space)
@@ -3144,7 +3112,7 @@ function ensureViewport(meta_window, space, options={}) {
     }
 
     selected.raise();
-    selected.clone.raise_top();
+    utils.actor_raise(selected.clone);
     updateSelection(space, meta_window);
     space.emit('select');
 }
@@ -3174,7 +3142,7 @@ function updateSelection(space, metaWindow) {
     
     if (space.selection.get_parent() === clone)
         return;
-    space.selection.reparent(clone);
+    utils.actor_reparent(space.selection, clone);
     clone.set_child_below_sibling(space.selection, cloneActor);
     allocateClone(metaWindow);
 }
@@ -3204,7 +3172,7 @@ function move_to(space, metaWindow, { x, y, force, instant }) {
     }
 
     space.startAnimate();
-    Tweener.addTween(space.cloneContainer,
+    Easer.addEase(space.cloneContainer,
                      { x: target,
                        time: prefs.animation_time,
                        onComplete: space.moveDone.bind(space)
@@ -3229,7 +3197,7 @@ function grabBegin(metaWindow, type) {
             // NOTE: Keyboard grab moves the cursor, but it happens after grab
             // signals have run. Simply delay the dnd so it will get the correct
             // pointer coordinates.
-            Meta.later_add(Meta.LaterType.IDLE, () => {
+            utils.later_add(Meta.LaterType.IDLE, () => {
                 inGrab.begin();
                 inGrab.beginDnD();
             })
@@ -3352,7 +3320,7 @@ function focus_handler(metaWindow, user_data) {
     
     TopBar.fixTopBar();
 }
-var focus_wrapper = utils.dynamic_function_ref('focus_handler', Me);
+var focus_wrapper = utils.dynamic_function_ref('focus_handler', this);
 
 /**
    Push all minimized windows to the scratch layer
@@ -3363,7 +3331,7 @@ function minimizeHandler(metaWindow) {
         Scratch.makeScratch(metaWindow);
     }
 }
-var minimizeWrapper = utils.dynamic_function_ref('minimizeHandler', Me);
+var minimizeWrapper = utils.dynamic_function_ref('minimizeHandler', this);
 
 /**
   `WindowActor::show` handling
@@ -3379,10 +3347,7 @@ function showHandler(actor) {
 
     // HACK: use opacity instead of hidden on new windows
     if (metaWindow.unmapped) {
-        if (utils.version[1] < 34)
-            animateWindow(metaWindow);
-        else
-            actor.opacity = 0;
+        actor.opacity = 0;
         return;
     }
 
@@ -3394,7 +3359,7 @@ function showHandler(actor) {
         animateWindow(metaWindow);
     }
 }
-var showWrapper = utils.dynamic_function_ref('showHandler', Me);
+var showWrapper = utils.dynamic_function_ref('showHandler', this);
 
 function showWindow(metaWindow) {
     let actor = metaWindow.get_compositor_private();
@@ -3938,7 +3903,7 @@ function takeWindow(metaWindow, space, {navigator}) {
             });
 
             // activate last metaWindow after taken windows inserted
-            Meta.later_add(Meta.LaterType.IDLE, () => {
+            utils.later_add(Meta.LaterType.IDLE, () => {
                 Main.activateWindow(metaWindow);
             });
         });
@@ -3951,8 +3916,10 @@ function takeWindow(metaWindow, space, {navigator}) {
     let lowest = navigator._moving[navigator._moving.length - 2];
     lowest && parent.set_child_below_sibling(metaWindow.clone, lowest.clone);
     let point = space.cloneContainer.apply_relative_transform_to_point(
-        parent, new Clutter.Vertex({x: metaWindow.clone.x,
-                                             y: metaWindow.clone.y}));
+        parent, new Graphene.Point3D({
+            x: metaWindow.clone.x,
+            y: metaWindow.clone.y
+        }));
     metaWindow.clone.set_position(point.x, point.y);
     let x = Math.round(space.monitor.x +
                        space.monitor.width -
@@ -3960,7 +3927,7 @@ function takeWindow(metaWindow, space, {navigator}) {
     let y = Math.round(space.monitor.y + space.monitor.height*2/3)
         + 20*navigator._moving.length;
     animateWindow(metaWindow);
-    Tweener.addTween(metaWindow.clone,
+    Easer.addEase(metaWindow.clone,
                      {x, y,
                       time: prefs.animation_time,
                      });

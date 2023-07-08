@@ -1,9 +1,7 @@
-const { St } = imports.gi;
-
-// polyfill workspace_manager that was introduced in 3.30 (must happen before modules are imported)
-if (!global.workspace_manager) {
-    global.workspace_manager = global.screen;
-}
+var { St } = imports.gi;
+var ExtensionUtils = imports.misc.extensionUtils;
+var Util = imports.misc.util;
+var MessageTray = imports.ui.messageTray;
 
 /**
    The currently used modules
@@ -34,7 +32,7 @@ if (!global.workspace_manager) {
  */
 var modules = [
     'tiling', 'navigator', 'keybindings', 'scratch', 'liveAltTab', 'utils',
-    'stackoverlay', 'app', 'kludges', 'topbar', 'settings','gestures'
+    'stackoverlay', 'app', 'kludges', 'topbar', 'settings', 'gestures',
 ];
 
 /**
@@ -56,13 +54,15 @@ function run(method) {
 
 function safeCall(name, method) {
     try {
-        print("#paperwm", `${method} ${name}`);
         let module = Extension.imports[name];
+        if (module && module[method]) {
+            log("#paperwm", `${method} ${name}`);
+        }
         module && module[method] && module[method].call(module, errorNotification);
         return true;
     } catch(e) {
-        print("#paperwm", `${name} failed ${method}`);
-        print(`JS ERROR: ${e}\n${e.stack}`);
+        log("#paperwm", `${name} failed ${method}`);
+        log(`JS ERROR: ${e}\n${e.stack}`);
         errorNotification(
             "PaperWM",
             `Error occured in ${name} @${method}:\n\n${e.message}`,
@@ -82,19 +82,14 @@ var enabled = false;
 let lastDisabledTime = 0; // init (epoch ms)
 
 var Extension, convenience;
-function init() {
+function startup() {
     SESSIONID += "#";
-    log(`#paperwm init: ${SESSIONID}`);
-
-    // var Gio = imports.gi.Gio;
-    // let extfile = Gio.file_new_for_path( Extension.imports.extension.__file__);
     Extension = imports.misc.extensionUtils.getCurrentExtension();
-    convenience = Extension.imports.convenience;
 
     warnAboutGnomeShellVersionCompatibility();
 
     if(initRun) {
-        log(`#startup Reinitialized against our will! Skip adding bindings again to not cause trouble.`);
+        log(`#startup reinitialized against our will! Skip adding bindings again to not cause trouble.`);
         return;
     }
 
@@ -111,8 +106,10 @@ function enable() {
         return;
     }
 
-    if (run('enable'))
+    startup();
+    if (run('enable')) {
         enabled = true;
+    }
 }
 
 function disable() {
@@ -136,8 +133,12 @@ function disable() {
 
     if (run('disable')) {
         enabled = false;
+        initRun = false;
         lastDisabledTime = Date.now();
     }
+
+    Extension = null;
+    convenience = null;
 }
 
 
@@ -158,15 +159,15 @@ function warnAboutGnomeShellVersionCompatibility() {
     }
 
     // did not find a supported version
-    print("#paperwm", `WARNING: Running on unsupported version of gnome shell (${gnomeShellVersion})`);
-    print("#paperwm", `Supported versions: ${supportedVersions}`);
+    log("#paperwm", `WARNING: Running on unsupported version of gnome shell (${gnomeShellVersion})`);
+    log("#paperwm", `Supported versions: ${supportedVersions}`);
     const msg = `Running on unsupported version of gnome shell (${gnomeShellVersion}).
 Supported versions: ${supportedVersions}.
 Click for more information.`;
 
     const notification = notify("PaperWM Warning", msg);
     notification.connect('activated', () => {
-        imports.misc.util.spawn(["xdg-open", "https://github.com/paperwm/PaperWM/wiki/Warning:-Running-on-unsupported-version-of-gnome-shell"]);
+        Util.spawn(["xdg-open", "https://github.com/paperwm/PaperWM/wiki/Warning:-Running-on-unsupported-version-of-gnome-shell"]);
         notification.destroy();
     });
 }
@@ -180,7 +181,7 @@ function hasUserConfigFile() {
 }
 
 function installConfig() {
-    print("#rc", "Installing config");
+    log("#rc", "Installing config");
     const configDir = getConfigDir();
     configDir.make_directory_with_parents(null);
 
@@ -195,15 +196,15 @@ function installConfig() {
     const user = Extension.dir.get_child("examples/user.js");
     user.copy(configDir.get_child("user.js"), Gio.FileCopyFlags.NONE, null, null);
 
-    const settings = convenience.getSettings();
+    const settings = ExtensionUtils.getSettings();
     settings.set_boolean("has-installed-config-template", true);
 }
 
 function initUserConfig() {
-    const paperSettings = convenience.getSettings();
+    const paperSettings = ExtensionUtils.getSettings();
 
-    if (!paperSettings.get_boolean("has-installed-config-template")
-        && !hasUserConfigFile())
+    if (!paperSettings.get_boolean("has-installed-config-template") &&
+        !hasUserConfigFile())
     {
         try {
             installConfig();
@@ -211,15 +212,14 @@ function initUserConfig() {
             const configDir = getConfigDir().get_path();
             const notification = notify("PaperWM", `Installed user configuration in ${configDir}`);
             notification.connect('activated', () => {
-                imports.misc.util.spawn(["nautilus", configDir]);
+                Util.spawn(["nautilus", configDir]);
                 notification.destroy();
             });
-        } catch(e) {
+        } catch (e) {
             errorNotification("PaperWM",
-                              `Failed to install user config: ${e.message}`, e.stack);
-            print("#rc", "Install failed", e.message);
+                `Failed to install user config: ${e.message}`, e.stack);
+            log("#rc", "Install failed", e.message);
         }
-
     }
 
     if (hasUserConfigFile()) {
@@ -238,7 +238,6 @@ function initUserConfig() {
  * notification
  */
 function notify(msg, details, params) {
-    const MessageTray = imports.ui.messageTray;
     let source = new MessageTray.SystemNotificationSource();
     // note-to-self: the source is automatically destroyed when all its
     // notifications are removed.
@@ -251,7 +250,7 @@ function notify(msg, details, params) {
 
 function spawnPager(content) {
     const quoted = GLib.shell_quote(content);
-    imports.misc.util.spawn(["sh", "-c", `echo -En ${quoted} | gedit --new-window -`]);
+    Util.spawn(["sh", "-c", `echo -En ${quoted} | gedit --new-window -`]);
 }
 
 /**

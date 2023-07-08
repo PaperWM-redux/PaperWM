@@ -16,11 +16,16 @@ You can always view upstream submitted [issues and pull requests here](https://g
 
 [![project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://paperwm.zulipchat.com)
 
-PaperWM is an experimental [Gnome Shell](https://wiki.gnome.org/Projects/GnomeShell) extension providing scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
+> #### ⚠️ **BREAKING CHANGE:** we're working towards simplifying the install process for PaperWM, and having it installable from [extensions.gnome.org](https://extensions.gnome.org).  This requires changing the extension UUID for PaperWM to `paperwm@paperwm.github.com`.  Because of this change, users will likely need to re-run the `install.sh` and logout/login.
+> _Note: if you have run into issues, delete any older `paperwm@...` symlinks from `~/.local/share/gnome-shell/extensions` and re-run the `install.sh` script._
+
+> #### ➡️ **ATTENTION:** we recently set [`release`](https://github.com/paperwm/PaperWM/tree/release) branch as default.  This change aims to provide a more tested and stable experience for most users.  You can continue to use [`develop`](https://github.com/paperwm/PaperWM/tree/develop) branch if you want the latest features and fixes as soon as they're available.  Changes will be merged into `release` branch after a week or so of testing in `develop` branch.
+
+PaperWM is a [Gnome Shell](https://wiki.gnome.org/Projects/GnomeShell) extension which provides scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
 
 Supports Gnome Shell from 3.28 to 44 on X11 and wayland.
 
->**Note:** while PaperWM can be installed on a wide range of Gnome versions, new features aren't generally backported to versions NOT targeted for current support (see [Installation](#installation) section).  Fixes may be backported on request (please submit a [new issue](https://github.com/paperwm/PaperWM/issues/new/choose) if you've identified a recent fix that should be backported and you can help with testing).
+_While PaperWM can be installed on a wide range of Gnome versions, new features aren't generally backported to versions NOT targeted for current support (see [Installation](#installation) section).  Fixes may be backported on request (please submit a [new issue](https://github.com/paperwm/PaperWM/issues/new/choose) if you've identified a recent fix that should be backported and you can help with testing)._
 
 While technically an [extension](https://wiki.gnome.org/Projects/GnomeShell/Extensions) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
 
@@ -38,12 +43,12 @@ _Note: the AUR package is git-based install package, so re-installing that packa
 
 Clone the repo and check out the branch supporting the Gnome Shell version you're running.
 
-- 42-44 (targeted for current support): https://github.com/paperwm/PaperWM/tree/develop
+- 42-44 (targeted for current support): https://github.com/paperwm/PaperWM/tree/release
 - 40-41: https://github.com/paperwm/PaperWM/tree/gnome-40
 - 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
 
 
-Then run the [`install.sh`](https://github.com/paperwm/PaperWM/blob/develop/install.sh) script
+Then run the [`install.sh`](https://github.com/paperwm/PaperWM/blob/release/install.sh) script
 from the repository. The installer will create a link to the repo in
 `$XDG_DATA_HOME/gnome-shell/extensions/`. It will then ask if you want to apply
 the recommended settings (see [Recommended
@@ -51,34 +56,24 @@ Settings](#recommended-gnome-shell-settings)) and lastly it will ask to enable P
 ```bash
 ./install.sh # install, load and enable paperwm
 ```
-_Note: following installation you'll likely need to logout and login again for the PaperWM extension to show in the Gnome `Extensions` application._
-
+> #### ➡️ You will likely need to restart Gnome shell after installing PaperWM, e.g. logout then login, or restart in place with an `alt-F2` and entering `r` (X11 only).
+>
+> After logging back in, you will can then enable PaperWM via the `Extensions` application, or by running the following command from the command-line:
+>
+> ```bash
+> /usr/bin/gnome-extensions enable paperwm@paperwm.github.com
+> ```
+### Uninstall PaperWM
 To uninstall simply run `./uninstall.sh`.
 
 Running the extension will automatically install a user config file as described in [User configuration & development](#user-configuration--development).
 
-### Note for Ubuntu users ###
+## Contributing
+Users are enouraged to submit [issues](https://github.com/paperwm/PaperWM/issues/new/choose) and [Pull Requests](https://github.com/paperwm/PaperWM/pulls)!
 
-There's three different gnome-desktop variants in Ubuntu:
-- [`ubuntu-desktop`](https://packages.ubuntu.com/focal/ubuntu-desktop): the default
-- [`ubuntu-gnome-desktop`](https://packages.ubuntu.com/focal/ubuntu-gnome-desktop):
-  adds plain gnome sessions to the default
-- [`vanilla-gnome-desktop`](https://packages.ubuntu.com/focal/vanilla-gnome-desktop):
-  a «plain» variant
-
-The default `ubuntu-desktop` ships with `desktop-icons` which doesn't work
-correctly with PaperWM ([#145](https://github.com/paperwm/PaperWM/issues/145),
-[#218](https://github.com/paperwm/PaperWM/issues/218)). Turning the extension
-off in gnome-tweaks [should work in
-19.10](https://github.com/paperwm/PaperWM/issues/218#issuecomment-572250654),
-but there's [reports of this not
-working](https://github.com/paperwm/PaperWM/issues/145#issuecomment-508620154)
-in 19.04, so your milage my vary.
-
-For the easiest out of the box experience we reccommend `ubuntu-gnome-desktop`.
-`vanilla-gnome-desktop` adds some keybindings which plays badly with PaperWM
-([#233](https://github.com/paperwm/PaperWM/issues/233)), making it unsuitable at
-the moment.
+> #### ➡️ Please ensure pull requests are based off, and submitted to, [develop](https://github.com/paperwm/PaperWM/tree/develop) branch.
+> 
+> Pull requests submitted to the `release` branch will not be accepted (but don't worry, if you accidentally submit a PR to the `release` branch we won't be mad, and will just remind you and ask you to change it).
 
 ## Usage ##
 
@@ -199,7 +194,7 @@ When the tiling is active <kbd>Super</kbd><kbd>Shift</kbd><kbd>Tab</kbd> selects
 
 A default user configuration, `user.js`, is created in `~/.config/paperwm/` with three functions `init`, `enable` and `disable`. `init` will run only once on startup, `enable` and `disable` will be run whenever extensions are being told to disable and enable themselves. Eg. when locking the screen with <kbd>Super</kbd><kbd>L</kbd>.
 
-You can also supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@hedning:matrix.org/user.css` or `/usr/share/gnome-shell/extensions/paperwm@hedning:matrix.org/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). To reload the `user.css` (and all other loaded CSS files) you can run `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that `user.css` needs to already be loaded for this to work. So after initially creating the file you might need to restart gnome once.
+You can also supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). To reload the `user.css` (and all other loaded CSS files) you can run `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that `user.css` needs to already be loaded for this to work. So after initially creating the file you might need to restart gnome once.
 
 We also made an emacs package, [gnome-shell-mode](https://github.com/paperwm/gnome-shell-mode), to make hacking on the config and writing extensions a more pleasant experience. To support this out of the box we also install a `metadata.json` so gnome-shell-mode will pick up the correct file context, giving you completion and interactive evaluation ala. looking glass straight in emacs.
 
@@ -466,7 +461,7 @@ There's a few Gnome Shell settings which works poorly with PaperWM. Namely
 - `attach-modal-dialogs`: Attached modal dialogs can cause visual glitching
 
 To use the recommended settings run
-[`set-recommended-gnome-shell-settings.sh`](https://github.com/paperwm/PaperWM/blob/develop/set-recommended-gnome-shell-settings.sh). A "restore previous settings" script is generated so the original settings is not lost.
+[`set-recommended-gnome-shell-settings.sh`](https://github.com/paperwm/PaperWM/blob/release/set-recommended-gnome-shell-settings.sh). A "restore previous settings" script is generated so the original settings is not lost.
 
 
 ## Recommended extensions ##
