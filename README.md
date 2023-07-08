@@ -16,11 +16,6 @@ You can always view upstream submitted [issues and pull requests here](https://g
 
 [![project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://paperwm.zulipchat.com)
 
-> #### ⚠️ **BREAKING CHANGE:** we're working towards simplifying the install process for PaperWM, and having it installable from [extensions.gnome.org](https://extensions.gnome.org).  This requires changing the extension UUID for PaperWM to `paperwm@paperwm.github.com`.  Because of this change, users will likely need to re-run the `install.sh` and logout/login.
-> _Note: if you have run into issues, delete any older `paperwm@...` symlinks from `~/.local/share/gnome-shell/extensions` and re-run the `install.sh` script._
-
-> #### ➡️ **ATTENTION:** we recently set [`release`](https://github.com/paperwm/PaperWM/tree/release) branch as default.  This change aims to provide a more tested and stable experience for most users.  You can continue to use [`develop`](https://github.com/paperwm/PaperWM/tree/develop) branch if you want the latest features and fixes as soon as they're available.  Changes will be merged into `release` branch after a week or so of testing in `develop` branch.
-
 PaperWM is a [Gnome Shell](https://wiki.gnome.org/Projects/GnomeShell) extension which provides scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
 
 Supports Gnome Shell from 3.28 to 44 on X11 and wayland.
@@ -61,7 +56,7 @@ Settings](#recommended-gnome-shell-settings)) and lastly it will ask to enable P
 > After logging back in, you will can then enable PaperWM via the `Extensions` application, or by running the following command from the command-line:
 >
 > ```bash
-> /usr/bin/gnome-extensions enable paperwm@paperwm.github.com
+> /usr/bin/gnome-extensions enable paperwm@paperwm-redux.github.com
 > ```
 ### Uninstall PaperWM
 To uninstall simply run `./uninstall.sh`.
@@ -194,7 +189,7 @@ When the tiling is active <kbd>Super</kbd><kbd>Shift</kbd><kbd>Tab</kbd> selects
 
 A default user configuration, `user.js`, is created in `~/.config/paperwm/` with three functions `init`, `enable` and `disable`. `init` will run only once on startup, `enable` and `disable` will be run whenever extensions are being told to disable and enable themselves. Eg. when locking the screen with <kbd>Super</kbd><kbd>L</kbd>.
 
-You can also supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). To reload the `user.css` (and all other loaded CSS files) you can run `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that `user.css` needs to already be loaded for this to work. So after initially creating the file you might need to restart gnome once.
+You can also supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). To reload the `user.css` (and all other loaded CSS files) you can run `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that `user.css` needs to already be loaded for this to work. So after initially creating the file you might need to restart gnome once.
 
 We also made an emacs package, [gnome-shell-mode](https://github.com/paperwm/gnome-shell-mode), to make hacking on the config and writing extensions a more pleasant experience. To support this out of the box we also install a `metadata.json` so gnome-shell-mode will pick up the correct file context, giving you completion and interactive evaluation ala. looking glass straight in emacs.
 
