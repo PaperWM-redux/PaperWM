@@ -22,16 +22,6 @@ var Scratch = Extension.imports.scratch;
 var Tiling = Extension.imports.tiling;
 var Clutter = imports.gi.Clutter;
 
-function overrideHotCorners() {
-    for (let corner of Main.layoutManager.hotCorners) {
-        if (!corner)
-            continue;
-
-        corner._toggleOverview = function() {};
-        corner._pressureBarrier._trigger = function() {};
-    }
-}
-
 // Workspace.WindowClone.getOriginalPosition
 // Get the correct positions of tiled windows when animating to/from the overview
 function getOriginalPosition() {
@@ -40,21 +30,8 @@ function getOriginalPosition() {
     if (!space || space.indexOf(this.metaWindow) === -1) {
         return [this._boundingBox.x, this._boundingBox.y];
     }
-    let [x, y] = [ space.monitor.x + space.targetX + c.targetX, space.monitor.y + c.y];
+    let [x, y] = [space.monitor.x + space.targetX + c.targetX, space.monitor.y + c.y];
     return [x, y];
-}
-
-function disableHotcorners() {
-    let override = settings.get_boolean("override-hot-corner");
-    if (override) {
-        overrideHotCorners();
-        signals.connect(Main.layoutManager,
-            'hot-corners-changed',
-            overrideHotCorners);
-    } else {
-        signals.disconnect(Main.layoutManager);
-        Main.layoutManager._updateHotCorners();
-    }
 }
 
 var savedProps;
@@ -158,7 +135,6 @@ function setupOverrides() {
     // Workspace.Workspace._realRecalculateWindowPositions
     // Sort tiled windows in the correct order
     registerOverridePrototype(Workspace.Workspace, '_realRecalculateWindowPositions',
-
         function (flags) {
             if (this._repositionWindowsId > 0) {
                 Mainloop.source_remove(this._repositionWindowsId);
@@ -254,10 +230,76 @@ function disableOverrides() {
     }
 }
 
-function restoreMethod(obj, name) {
-    let method = getMethod(obj, name);
-    if (method)
-        obj[name] = method;
+/**
+ * Saves the original setting value (boolean) to restore on disable.
+ * We save a backup of the user's setting to PaperWM settings (schema)
+ * for safety (in case gnome terminates etc.).  This ensures original
+ * user settings will be restored on next PaperWM disable.
+ * @param key
+ */
+let runtimeDisables = [];
+function saveRuntimeDisable(schemaSettings, key, disableValue) {
+    try {
+        let origValue = schemaSettings.get_boolean(key);
+        schemaSettings.set_boolean(key, disableValue);
+
+        // save a backup copy to PaperWM settings (for restore)
+        let pkey = 'restore-' + key;
+
+        /**
+         * Now if paperwm settings has restore values, it means
+         * that they weren't previously restore properly (since on
+         * successful restore we clear the values).
+         */
+        if (settings.get_string(pkey) === '') {
+            settings.set_string(pkey, origValue.toString());
+        }
+
+        // we want to restore from PaperWM back settings (safer)
+        let restore = () => {
+            let value = settings.get_string(pkey);
+            // if value is empty, do nothing
+            if (value === '') {
+                return;
+            }
+
+            let bvalue = value === 'true';
+            schemaSettings.set_boolean(key, bvalue);
+
+            // after restore, empty papermw saved value
+            settings.set_string(pkey, '');
+        };
+
+        runtimeDisables.push(restore);
+    } catch (e) {
+        log(e);
+    }
+}
+
+/**
+ * PaperWM disables certain behaviours during runtime.
+ * The user original settings are saved to PaperWM's settings (schema) for restoring
+ * purposes (we save to PaperWM's setting just in gnome terminates before PaperWM can
+ * restore the original user settings).  These settings are then restored on disable().
+ */
+function setupRuntimeDisables() {
+    saveRuntimeDisable(mutterSettings, 'attach-modal-dialogs', false);
+    saveRuntimeDisable(mutterSettings, 'workspaces-only-on-primary', false);
+    saveRuntimeDisable(mutterSettings, 'edge-tiling', false);
+}
+
+/**
+ * Restores the runtime settings that were disabled when
+ * PaperWM was enabled.
+ */
+function restoreRuntimeDisables() {
+    runtimeDisables.forEach(restore => {
+        try {
+            restore();
+        } catch (e) {
+            log(e);
+        }
+    });
 }
 
 /**
@@ -278,8 +320,6 @@ function setupSwipeTrackers() {
 var signals;
 function setupSignals() {
     signals = new utils.Signals();
-    signals.connect(settings, 'changed::override-hot-corner', disableHotcorners);
-    disableHotcorners();
 
     /**
      * Swipetrackers are reset by gnome during overview, once exits overview
@@ -321,28 +361,31 @@ function setupActions() {
     actions.forEach(a => global.stage.remove_action(a));
 }
 
-var settings;
-var wmSettings;
+var settings, wmSettings, mutterSettings;
 function enable() {
     settings = ExtensionUtils.getSettings();
     wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
+    mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
     setupSwipeTrackers();
     setupOverrides();
     enableOverrides();
+    setupRuntimeDisables();
     setupSignals();
     setupActions();
 }
 
 function disable() {
     disableOverrides();
+    restoreRuntimeDisables();
     actions.forEach(a => global.stage.add_action(a));
 
     signals.destroy();
     signals = null;
-    Main.layoutManager._updateHotCorners();
+
     swipeTrackers = null;
     settings = null;
     wmSettings = null;
+    mutterSettings = null;
     actions = null;
 }
 
@@ -518,7 +561,7 @@ function _checkWorkspaces() {
 
     this._checkWorkspacesId = 0;
     return false;
-};
+}
 
 function addWindow(window, metaWindow) {
     if (this._windows.has(window))
