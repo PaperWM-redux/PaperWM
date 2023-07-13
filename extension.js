@@ -1,5 +1,6 @@
-var {St} = imports.gi;
 var ExtensionUtils = imports.misc.extensionUtils;
+var Extension = ExtensionUtils.getCurrentExtension();
+var {St} = imports.gi;
 var Util = imports.misc.util;
 var MessageTray = imports.ui.messageTray;
 
@@ -80,7 +81,16 @@ var SESSIONID = ""+(new Date().getTime());
 var enabled = false;
 let lastDisabledTime = 0; // init (epoch ms)
 
-var Extension, convenience;
+/**
+ * Runs once on extension init().
+ * Not run on PaperWM modules, but if a user as a `user.js` module defined
+ * in `~/.config/paperwm/` then this will run it's `user.js` init().
+ */
+function init() {
+    initUserConfig();
+    run('init');
+}
+
 function enable() {
     log(`#paperwm enable ${SESSIONID}`);
     if (enabled) {
@@ -92,7 +102,7 @@ function enable() {
     Extension = imports.misc.extensionUtils.getCurrentExtension();
     warnAboutGnomeShellVersionCompatibility();
 
-    enableUserConfig();
+    enableUserStylesheet();
 
     if (run('enable')) {
         enabled = true;
@@ -123,11 +133,9 @@ function disable() {
         lastDisabledTime = Date.now();
     }
 
-    disableUserConfig();
+    disableUserStylesheet();
     Extension = null;
-    convenience = null;
 }
-
 
 var Gio = imports.gi.Gio;
 var GLib = imports.gi.GLib;
@@ -163,29 +171,35 @@ function getConfigDir() {
     return Gio.file_new_for_path(GLib.get_user_config_dir() + '/paperwm');
 }
 
+function configDirExists() {
+    return getConfigDir().query_exists(null);
+}
+
 function hasUserConfigFile() {
     return getConfigDir().get_child("user.js").query_exists(null);
 }
 
 function installConfig() {
     const configDir = getConfigDir();
-    configDir.make_directory_with_parents(null);
+    // if user config folder doesn't exist, create it
+    if (!configDirExists()) {
+        configDir.make_directory_with_parents(null);
+    }
 
     // We copy metadata.json to the config directory so gnome-shell-mode
-    // know which extension the files belong to (ideally we'd symlink, but
+    // knows which extension the files belong to (ideally we'd symlink, but
     // that trips up the importer: Extension.imports.<complete> in
     // gnome-shell-mode crashes gnome-shell..)
     const metadata = Extension.dir.get_child("metadata.json");
     metadata.copy(configDir.get_child("metadata.json"), Gio.FileCopyFlags.NONE, null, null);
 
     // Copy the user.js template to the config directory
-    const user = Extension.dir.get_child("examples/user.js");
+    const user = Extension.dir.get_child("config/user.js");
     user.copy(configDir.get_child("user.js"), Gio.FileCopyFlags.NONE, null, null);
 }
 
-var userStylesheet;
-function enableUserConfig() {
-    if (!hasUserConfigFile()) {
+function initUserConfig() {
+    if (!configDirExists()) {
         try {
             installConfig();
 
@@ -196,16 +210,21 @@ function enableUserConfig() {
                 notification.destroy();
             });
         } catch (e) {
-            errorNotification("PaperWM",
-                `Failed to install user config: ${e.message}`, e.stack);
-            log("#rc", "Install failed", e.message);
+            errorNotification("PaperWM", `Failed to install user config: ${e.message}`, e.stack);
+            log("PaperWM", "User config install failed", e.message);
         }
     }
 
     if (hasUserConfigFile()) {
         Extension.imports.searchPath.push(getConfigDir().get_path());
     }
+}
 
+/**
+ * Reloads user.css styles (if user.css present in ~/.config/paperwm).
+ */
+var userStylesheet;
+function enableUserStylesheet() {
     userStylesheet = getConfigDir().get_child("user.css");
     if (userStylesheet.query_exists(null)) {
         let themeContext = St.ThemeContext.get_for_stage(global.stage);
@@ -213,7 +232,10 @@ function enableUserConfig() {
     }
 }
 
-function disableUserConfig() {
+/**
+ * Unloads user.css styles (if user.css present in ~/.config/paperwm).
+ */
+function disableUserStylesheet() {
     let themeContext = St.ThemeContext.get_for_stage(global.stage);
     themeContext.get_theme().unload_stylesheet(userStylesheet);
 }
