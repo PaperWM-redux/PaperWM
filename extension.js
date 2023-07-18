@@ -1,6 +1,7 @@
 var ExtensionUtils = imports.misc.extensionUtils;
 var Extension = ExtensionUtils.getCurrentExtension();
-var {St} = imports.gi;
+var {St, Gio, GLib} = imports.gi;
+var Main = imports.ui.main;
 var Util = imports.misc.util;
 var MessageTray = imports.ui.messageTray;
 
@@ -31,7 +32,7 @@ var MessageTray = imports.ui.messageTray;
 
      - gestures is responsible for 3-finger swiping (only works in wayland).
  */
-var modules = [
+const modules = [
     'settings', 'tiling', 'navigator', 'keybindings', 'scratch', 'liveAltTab', 'utils',
     'stackoverlay', 'app', 'kludges', 'topbar', 'gestures',
 ];
@@ -44,10 +45,6 @@ function run(method) {
         // Bail if there's an error in our own modules
         if (!safeCall(name, method))
             return false;
-    }
-
-    if (hasUserConfigFile()) {
-        safeCall('user', method);
     }
 
     return true;
@@ -72,7 +69,7 @@ function safeCall(name, method) {
     }
 }
 
-var SESSIONID = ""+(new Date().getTime());
+var SESSIONID = "" + (new Date().getTime());
 
 /**
  * The extension sometimes go through multiple init -> enable -> disable
@@ -81,16 +78,7 @@ var SESSIONID = ""+(new Date().getTime());
 var enabled = false;
 let lastDisabledTime = 0; // init (epoch ms)
 
-/**
- * Runs once on extension init().
- * Not run on PaperWM modules, but if a user as a `user.js` module defined
- * in `~/.config/paperwm/` then this will run it's `user.js` init().
- */
-function init() {
-    initUserConfig();
-    run('init');
-}
-
+let firstEnable = true;
 function enable() {
     log(`#paperwm enable ${SESSIONID}`);
     if (enabled) {
@@ -99,14 +87,12 @@ function enable() {
     }
 
     SESSIONID += "#";
-    Extension = imports.misc.extensionUtils.getCurrentExtension();
-    warnAboutGnomeShellVersionCompatibility();
-
+    enableUserConfig();
     enableUserStylesheet();
-    updateUserConfigMetadata();
 
     if (run('enable')) {
         enabled = true;
+        firstEnable = false;
     }
 }
 
@@ -135,37 +121,7 @@ function disable() {
     }
 
     disableUserStylesheet();
-    Extension = null;
-}
-
-var Gio = imports.gi.Gio;
-var GLib = imports.gi.GLib;
-var Main = imports.ui.main;
-var Config = imports.misc.config;
-
-// Checks gnome shell version compatibility and warns the user when running on
-// and unsupported version.
-function warnAboutGnomeShellVersionCompatibility() {
-    const gnomeShellVersion = Config.PACKAGE_VERSION;
-    const supportedVersions = Extension.metadata["shell-version"];
-    for (const version of supportedVersions) {
-        if (gnomeShellVersion.startsWith(version)) {
-            return;
-        }
-    }
-
-    // did not find a supported version
-    log("#paperwm", `WARNING: Running on unsupported version of gnome shell (${gnomeShellVersion})`);
-    log("#paperwm", `Supported versions: ${supportedVersions}`);
-    const msg = `Running on unsupported version of gnome shell (${gnomeShellVersion}).
-Supported versions: ${supportedVersions}.
-Click for more information.`;
-
-    const notification = notify("PaperWM Warning", msg);
-    notification.connect('activated', () => {
-        Util.spawn(["xdg-open", "https://github.com/paperwm/PaperWM/wiki/Warning:-Running-on-unsupported-version-of-gnome-shell"]);
-        notification.destroy();
-    });
+    safeCall('user', 'disable');
 }
 
 function getConfigDir() {
@@ -208,14 +164,12 @@ function installConfig() {
         configDir.make_directory_with_parents(null);
     }
 
-    updateUserConfigMetadata();
-
     // Copy the user.js template to the config directory
     const user = Extension.dir.get_child("config/user.js");
     user.copy(configDir.get_child("user.js"), Gio.FileCopyFlags.NONE, null, null);
 }
 
-function initUserConfig() {
+function enableUserConfig() {
     if (!configDirExists()) {
         try {
             installConfig();
@@ -232,8 +186,22 @@ function initUserConfig() {
         }
     }
 
+    updateUserConfigMetadata();
+
+    // add to searchpath if user has config file and action user.js
     if (hasUserConfigFile()) {
-        Extension.imports.searchPath.push(getConfigDir().get_path());
+        let SearchPath = Extension.imports.searchPath;
+        let path = getConfigDir().get_path();
+        if (!SearchPath.includes(path)) {
+            SearchPath.push(path);
+        }
+
+        // run user.js routines
+        if (firstEnable) {
+            safeCall('user', 'init');
+        }
+
+        safeCall('user', 'enable');
     }
 }
 
