@@ -1,9 +1,8 @@
-var ExtensionUtils = imports.misc.extensionUtils;
-var Extension = ExtensionUtils.getCurrentExtension();
-var {St, Gio, GLib} = imports.gi;
-var Main = imports.ui.main;
-var Util = imports.misc.util;
-var MessageTray = imports.ui.messageTray;
+const Module = imports.misc.extensionUtils.getCurrentExtension().imports.module;
+const {Gio, GLib, St} = imports.gi;
+const Util = imports.misc.util;
+const MessageTray = imports.ui.messageTray;
+const Main = imports.ui.main;
 
 /**
    The currently used modules
@@ -33,8 +32,8 @@ var MessageTray = imports.ui.messageTray;
      - gestures is responsible for 3-finger swiping (only works in wayland).
  */
 const modules = [
-    'settings', 'tiling', 'navigator', 'keybindings', 'scratch', 'liveAltTab', 'utils',
-    'stackoverlay', 'app', 'kludges', 'topbar', 'gestures',
+    'kludges', 'settings', 'keybindings', 'gestures', 'tiling', 'navigator', 'scratch',
+    'liveAltTab', 'utils', 'stackoverlay', 'app', 'topbar',
 ];
 
 /**
@@ -52,15 +51,15 @@ function run(method) {
 
 function safeCall(name, method) {
     try {
-        let module = Extension.imports[name];
+        let module = Module.Extension.imports[name];
         if (module && module[method]) {
-            log("#paperwm", `${method} ${name}`);
+            console.debug("#paperwm", `${method} ${name}`);
         }
         module && module[method] && module[method].call(module, errorNotification);
         return true;
     } catch(e) {
-        log("#paperwm", `${name} failed ${method}`);
-        log(`JS ERROR: ${e}\n${e.stack}`);
+        console.error("#paperwm", `${name} failed ${method}`);
+        console.error(`JS ERROR: ${e}\n${e.stack}`);
         errorNotification(
             "PaperWM",
             `Error occured in ${name} @${method}:\n\n${e.message}`,
@@ -69,56 +68,22 @@ function safeCall(name, method) {
     }
 }
 
-var SESSIONID = "" + (new Date().getTime());
-
-/**
- * The extension sometimes go through multiple init -> enable -> disable
- * cycles. So we need to keep track of whether we're initialized..
- */
-var enabled = false;
-let lastDisabledTime = 0; // init (epoch ms)
-
 let firstEnable = true;
 function enable() {
-    log(`#paperwm enable ${SESSIONID}`);
-    if (enabled) {
-        log('enable called without calling disable');
-        return;
-    }
+    console.log(`#PaperWM enabled`);
 
-    SESSIONID += "#";
     enableUserConfig();
     enableUserStylesheet();
 
     if (run('enable')) {
-        enabled = true;
         firstEnable = false;
     }
 }
 
 function disable() {
-    log(`#paperwm disable ${SESSIONID}`);
-    /**
-     * The below acts as a guard against multiple disable -> enable -> disable
-     * calls that can caused by gnome during unlocking.  This rapid enable/disable
-     * cycle can cause mutter (and other) issues since paperwm hasn't had sufficient 
-     * time to destroy/clean-up signals, actors, etc. before the next enable/disable 
-     * cycle begins.  The below guard forces at least 500 milliseconds before a 
-     * subsequent disable can be called.
-     */
-    if (Math.abs(Date.now() - lastDisabledTime) <= 500) {
-        log('disable has just been called');
-        return;
-    }
-    if (!enabled) {
-        log('disable called without calling enable');
-        return;
-    }
+    console.log('#PaperWM disable');
 
-    if (run('disable')) {
-        enabled = false;
-        lastDisabledTime = Date.now();
-    }
+    run('disable');
 
     disableUserStylesheet();
     safeCall('user', 'disable');
@@ -150,10 +115,10 @@ function updateUserConfigMetadata() {
 
     try {
         const configDir = getConfigDir();
-        const metadata = Extension.dir.get_child("metadata.json");
+        const metadata = Module.Extension.dir.get_child("metadata.json");
         metadata.copy(configDir.get_child("metadata.json"), Gio.FileCopyFlags.OVERWRITE, null, null);
     } catch (error) {
-        log('PaperWM', `could not update user config metadata.json: ${error}`);
+        console.error('PaperWM', `could not update user config metadata.json: ${error}`);
     }
 }
 
@@ -165,7 +130,7 @@ function installConfig() {
     }
 
     // Copy the user.js template to the config directory
-    const user = Extension.dir.get_child("config/user.js");
+    const user = Module.Extension.dir.get_child("config/user.js");
     user.copy(configDir.get_child("user.js"), Gio.FileCopyFlags.NONE, null, null);
 }
 
@@ -182,7 +147,7 @@ function enableUserConfig() {
             });
         } catch (e) {
             errorNotification("PaperWM", `Failed to install user config: ${e.message}`, e.stack);
-            log("PaperWM", "User config install failed", e.message);
+            console.error("PaperWM", "User config install failed", e.message);
         }
     }
 
@@ -190,7 +155,7 @@ function enableUserConfig() {
 
     // add to searchpath if user has config file and action user.js
     if (hasUserConfigFile()) {
-        let SearchPath = Extension.imports.searchPath;
+        let SearchPath = Module.Extension.imports.searchPath;
         let path = getConfigDir().get_path();
         if (!SearchPath.includes(path)) {
             SearchPath.push(path);

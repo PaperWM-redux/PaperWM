@@ -1,30 +1,20 @@
 /*
   Functionality related to the top bar, often called the statusbar.
  */
+const Module = imports.misc.extensionUtils.getCurrentExtension().imports.module;
+const Easer = Module.Extension.imports.utils.easer;
 
-var ExtentionUtils = imports.misc.extensionUtils;
-var Extension = ExtentionUtils.getCurrentExtension();
-var {Clutter, St, Graphene, GLib, Meta, Gio} = imports.gi;
-var PanelMenu = imports.ui.panelMenu;
-var PopupMenu = imports.ui.popupMenu;
-var Main = imports.ui.main;
-var Easer = Extension.imports.utils.easer;
-var Path = ExtentionUtils.getCurrentExtension().dir.get_path();
-
-var Tiling = Extension.imports.tiling;
-var Navigator = Extension.imports.navigator;
-var Utils = Extension.imports.utils;
-var Scratch = Extension.imports.scratch;
-
-var Settings = Extension.imports.settings;
-var prefs = Settings.prefs;
+const {Clutter, St, Graphene, GLib, Meta, Gio} = imports.gi;
+const PanelMenu = imports.ui.panelMenu;
+const PopupMenu = imports.ui.popupMenu;
+const Main = imports.ui.main;
+const Path = Module.Extension.dir.get_path();
 
 var panelBox = Main.layoutManager.panelBox;
 var panelMonitor;
 
 var workspaceManager = global.workspace_manager;
 var display = global.display;
-
 
 // From https://developer.gnome.org/hig-book/unstable/design-color.html.en
 var colors = [
@@ -37,6 +27,10 @@ var colors = [
     '#DF421E', '#990000', '#EED680', '#D1940C',
     '#46A046', '#267726', '#ffffff', '#000000',
 ];
+
+function prefs() {
+    return Module.Settings().getPrefs();
+}
 
 function createButton(icon_name, accessible_name) {
     return new St.Button({
@@ -68,12 +62,12 @@ var PopupMenuEntryHelper = function constructor(text) {
     this.nextIcon = createButton('go-next-symbolic', 'next workspace setting');
 
     this.nextIcon.connect('clicked', () => {
-        let space = Tiling.cycleWorkspaceSettings(-1);
+        let space = Module.Tiling().cycleWorkspaceSettings(-1);
         this.label.text = space.name;
         this.nextIcon.grab_key_focus();
     });
     this.prevIcon.connect('clicked', () => {
-        let space = Tiling.cycleWorkspaceSettings(1);
+        let space = Module.Tiling().cycleWorkspaceSettings(1);
         this.label.text = space.name;
         this.prevIcon.grab_key_focus();
     });
@@ -86,7 +80,7 @@ var PopupMenuEntryHelper = function constructor(text) {
 }
 
 // registerClass, breaking our somewhat lame registerClass polyfill.
-var PopupMenuEntry = Utils.registerClass(
+var PopupMenuEntry = Module.Utils().registerClass(
     class PopupMenuEntry extends PopupMenu.PopupBaseMenuItem {
         _init(text) {
             super._init({
@@ -157,7 +151,7 @@ class ColorEntry {
     }
 
     clicked() {
-        let space = Tiling.spaces.getActiveSpace();
+        let space = Module.Tiling().spaces.getActiveSpace();
         let color = this.entry.actor.text;
         space.settings.set_string('color', color);
     }
@@ -166,7 +160,7 @@ class ColorEntry {
 /**
  * FocusMode icon class.
  */
-var FocusIcon = Utils.registerClass(
+var FocusIcon = Module.Utils().registerClass(
     class FocusIcon extends St.Icon {
         _init(properties = {}, tooltip_parent, tooltip_x_point = 0) {
             super._init(properties);
@@ -221,7 +215,6 @@ var FocusIcon = Utils.registerClass(
          * Updates tooltip position relative to this button.
          */
         _updateTooltipPosition(xpoint = 0) {
-            //const offset = Tiling.spaces.getActiveSpace().width;
             let point = this.apply_transform_to_point(
                 new Graphene.Point3D({ x: xpoint, y: 0 }));
             this.tooltip.set_position(Math.max(0, point.x - 62), point.y + 34);
@@ -234,10 +227,10 @@ var FocusIcon = Utils.registerClass(
                         `    <i>Window focus mode</i>
 Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
             };
-            if (this.mode === Tiling.FocusModes.DEFAULT) {
+            if (this.mode === Module.Tiling().FocusModes.DEFAULT) {
                 markup('#6be67b', 'DEFAULT');
             }
-            else if (this.mode === Tiling.FocusModes.CENTER) {
+            else if (this.mode === Module.Tiling().FocusModes.CENTER) {
                 markup('#6be6cb', 'CENTER');
             } else {
                 this.tooltip.set_text('');
@@ -249,12 +242,12 @@ Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
          * @param {Tiling.FocusModes} mode
          */
         setMode(mode) {
-            mode = mode ?? Tiling.FocusModes.DEFAULT;
+            mode = mode ?? Module.Tiling().FocusModes.DEFAULT;
             this.mode = mode;
-            if (mode === Tiling.FocusModes.DEFAULT) {
+            if (mode === Module.Tiling().FocusModes.DEFAULT) {
                 this.gicon = this.gIconDefault;
             }
-            else if (mode === Tiling.FocusModes.CENTER) {
+            else if (mode === Module.Tiling().FocusModes.CENTER) {
                 this.gicon = this.gIconCenter;
             }
             this._updateTooltipText();
@@ -272,13 +265,13 @@ Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
     }
 );
 
-var FocusButton = Utils.registerClass(
+var FocusButton = Module.Utils().registerClass(
     class FocusButton extends PanelMenu.Button {
         _init() {
             super._init(0.0, 'FocusMode');
 
             this._icon = new FocusIcon({
-                style_class: 'system-status-icon focus-mode-button'
+                style_class: 'system-status-icon focus-mode-button',
             }, this, -10);
 
             this.setFocusMode();
@@ -288,17 +281,17 @@ var FocusButton = Utils.registerClass(
 
         /**
          * Sets the focus mode with this button.
-         * @param {*} mode 
+         * @param {*} mode
          */
         setFocusMode(mode) {
-            mode = mode ?? Tiling.FocusModes.DEFAULT;
+            mode = mode ?? Module.Tiling().FocusModes.DEFAULT;
             this.focusMode = mode;
             this._icon.setMode(mode);
             return this;
         }
 
         _onClicked(actor, event) {
-            if (Tiling.inPreview != Tiling.PreviewMode.NONE || Main.overview.visible) {
+            if (Module.Tiling().inPreview != Module.Tiling().PreviewMode.NONE || Main.overview.visible) {
                 return Clutter.EVENT_PROPAGATE;
             }
 
@@ -307,13 +300,13 @@ var FocusButton = Utils.registerClass(
                 return Clutter.EVENT_PROPAGATE;
             }
 
-            Tiling.switchToNextFocusMode();
+            Module.Tiling().switchToNextFocusMode();
             return Clutter.EVENT_PROPAGATE;
         }
     }
 );
 
-var WorkspaceMenu = Utils.registerClass(
+var WorkspaceMenu = Module.Utils().registerClass(
     class WorkspaceMenu extends PanelMenu.Button {
         _init() {
             super._init(0.5, 'Workspace', false);
@@ -332,7 +325,7 @@ var WorkspaceMenu = Utils.registerClass(
 
             this.add_actor(this.label);
 
-            this.signals = new Utils.Signals();
+            this.signals = Module.Signals();
             this.signals.connect(global.window_manager,
                 'switch-workspace',
                 this.workspaceSwitched.bind(this));
@@ -343,7 +336,7 @@ var WorkspaceMenu = Utils.registerClass(
             this.menu.addMenuItem(this.entry);
             let changed = () => {
                 let name = this.entry.label.text;
-                let space = Tiling.spaces.spaceOf(workspaceManager.get_active_workspace());
+                let space = Module.Tiling().spaces.spaceOf(workspaceManager.get_active_workspace());
                 space.settings.set_string('name', name);
                 this.setName(name);
             };
@@ -353,7 +346,7 @@ var WorkspaceMenu = Utils.registerClass(
             // this._zenItem = new PopupMenu.PopupSwitchMenuItem('Hide top bar', false);
             // this.menu.addMenuItem(this._zenItem);
             // this._zenItem.connect('toggled', item => {
-            //     Tiling.spaces.selectedSpace.settings.set_boolean('show-top-bar', !item.state);
+            //     Module.Tiling().spaces.selectedSpace.settings.set_boolean('show-top-bar', !item.state);
             // });
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -370,7 +363,7 @@ var WorkspaceMenu = Utils.registerClass(
                 let wi = workspaceManager.get_active_workspace_index();
                 let temp_file = Gio.File.new_for_path(GLib.get_tmp_dir()).get_child('paperwm.workspace')
                 temp_file.replace_contents(wi.toString(), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null)
-                ExtentionUtils.openPrefs()
+                Module.ExtentionUtils.openPrefs();
             });
 
             // this.iconBox = new St.BoxLayout();
@@ -393,8 +386,8 @@ var WorkspaceMenu = Utils.registerClass(
 
         _onEvent(actor, event) {
             if (!this.menu) {
-                log("?? no menu ??");
-                Utils.print_stacktrace();
+                console.warn("?? no menu ??");
+                Module.Utils().print_stacktrace();
                 return Clutter.EVENT_PROPAGATE;
             }
 
@@ -404,10 +397,10 @@ var WorkspaceMenu = Utils.registerClass(
 
             let type = event.type();
 
-            if ((type == Clutter.EventType.TOUCH_END ||
-                type == Clutter.EventType.BUTTON_RELEASE)) {
-                if (Navigator.navigating) {
-                    Navigator.getNavigator().finish();
+            if (type == Clutter.EventType.TOUCH_END ||
+                type == Clutter.EventType.BUTTON_RELEASE) {
+                if (Module.Navigator().navigating) {
+                    Module.Navigator().getNavigator().finish();
                 } else {
                     if (this.menu.isOpen) {
                         this.menu.toggle();
@@ -429,8 +422,8 @@ var WorkspaceMenu = Utils.registerClass(
                 type === Clutter.EventType.SCROLL) {
                 if (!this._navigator) {
                     this.state = 'SCROLL';
-                    this._navigator = Navigator.getNavigator();
-                    Tiling.spaces.initWorkspaceStack();
+                    this._navigator = Module.Navigator().getNavigator();
+                    Module.Tiling().spaces.initWorkspaceStack();
                     this._enterbox = new Clutter.Actor({ reactive: true });
                     Main.uiGroup.add_actor(this._enterbox);
                     this._enterbox.set_position(panelBox.x, panelBox.y + panelBox.height + 20);
@@ -445,7 +438,7 @@ var WorkspaceMenu = Utils.registerClass(
                 }
 
                 let device = event.get_source_device();
-                // log(`source: ${device.get_device_type()}`);
+                // console.debug(`source: ${device.get_device_type()}`);
                 let direction = event.get_scroll_direction();
                 if (direction === Clutter.ScrollDirection.SMOOTH
                     && device.get_device_type() !== Clutter.InputDeviceType.POINTER_DEVICE) {
@@ -453,23 +446,23 @@ var WorkspaceMenu = Utils.registerClass(
                 }
 
                 if (direction === Clutter.ScrollDirection.DOWN) {
-                    Tiling.spaces.selectStackSpace(Meta.MotionDirection.DOWN);
+                    Module.Tiling().spaces.selectStackSpace(Meta.MotionDirection.DOWN);
                 }
                 if (direction === Clutter.ScrollDirection.UP) {
-                    Tiling.spaces.selectStackSpace(Meta.MotionDirection.UP);
+                    Module.Tiling().spaces.selectStackSpace(Meta.MotionDirection.UP);
                 }
             }
 
             if (this.state === 'SMOOTH' && type === Clutter.EventType.SCROLL
                 && event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH) {
-                let spaces = Tiling.spaces;
+                let spaces = Module.Tiling().spaces;
                 let active = spaces.getActiveSpace();
 
                 let [dx, dy] = event.get_scroll_delta();
                 dy *= active.height * 0.05;
                 let t = event.get_time();
                 let v = -dy / (this.time - t);
-                // log(`v ${v}, dy: ${dy}`);
+                // console.debug(`v ${v}, dy: ${dy}`);
 
                 let firstEvent = false;
                 if (!this.selected) {
@@ -477,7 +470,7 @@ var WorkspaceMenu = Utils.registerClass(
                     this.selected = spaces.selectedSpace;
                 }
                 let mode = Clutter.AnimationMode.EASE_IN_OUT_QUAD;
-                const StackPositions = Tiling.StackPositions;
+                const StackPositions = Module.Tiling().StackPositions;
                 const upEdge = 0.385 * active.height;
                 const downEdge = 0.60 * active.height;
                 if (dy > 0
@@ -493,7 +486,7 @@ var WorkspaceMenu = Utils.registerClass(
                     this.selected = spaces.selectedSpace;
                     Easer.removeEase(this.selected.actor);
                     Easer.addEase(this.selected.actor,
-                        { scale_x: 0.9, scale_y: 0.9, time: prefs.animation_time, mode });
+                        { scale_x: 0.9, scale_y: 0.9, time: prefs().animation_time, mode });
                 } else if (dy < 0
                     && ((this.selected.actor.y < downEdge &&
                         this.selected.actor.y - dy > downEdge)
@@ -506,7 +499,7 @@ var WorkspaceMenu = Utils.registerClass(
                     this.selected = spaces.selectedSpace;
                     Easer.removeEase(this.selected.actor);
                     Easer.addEase(this.selected.actor,
-                        {scale_x: 0.9, scale_y: 0.9, time: prefs.animation_time, mode});
+                        {scale_x: 0.9, scale_y: 0.9, time: prefs().animation_time, mode});
                 }
 
                 this.selected.actor.y -= dy;
@@ -519,7 +512,7 @@ var WorkspaceMenu = Utils.registerClass(
                 }
 
                 if (v === 0 && !firstEvent) {
-                    // log(`finish: ${this.velocity}`);
+                    // console.debug(`finish: ${this.velocity}`);
                     let test;
                     if (this.velocity > 0)
                         test = () => this.velocity > 0;
@@ -531,13 +524,13 @@ var WorkspaceMenu = Utils.registerClass(
                     while (test()) {
                         let dy = this.velocity * 16;
                         y -= dy;
-                        // log(`calc target: ${dy} ${y} ${this.velocity}`);
+                        // console.debug(`calc target: ${dy} ${y} ${this.velocity}`);
                         if (this.velocity > 0)
                             this.velocity -= friction;
                         else
                             this.velocity += friction;
                     }
-                    // log(`zero: ${y/this.selected.height}`);
+                    // console.debug(`zero: ${y/this.selected.height}`);
 
                     if (this.selected === active && y <= 0.1 * this.selected.height) {
                         this._navigator.finish();
@@ -567,7 +560,7 @@ var WorkspaceMenu = Utils.registerClass(
             if (!open)
                 return;
 
-            let space = Tiling.spaces.getActiveSpace();
+            let space = Module.Tiling().spaces.getActiveSpace();
             this.entry.label.text = space.name;
             GLib.idle_add(GLib.PRIORITY_DEFAULT, this.entry.activate.bind(this.entry));
 
@@ -584,7 +577,7 @@ var WorkspaceMenu = Utils.registerClass(
         }
 
         setName(name) {
-            if (prefs.use_workspace_name)
+            if (prefs().use_workspace_name)
                 this.label.text = name;
             else
                 this.label.text = orginalActivitiesText;
@@ -599,7 +592,7 @@ function enable () {
     let label = Main.panel.statusArea.activities.first_child;
     orginalActivitiesText = label.text;
     screenSignals = [];
-    signals = new Utils.Signals();
+    signals = Module.Signals();
 
     Main.panel.statusArea.activities.hide();
 
@@ -614,7 +607,7 @@ function enable () {
         updateMonitor();
     });
 
-    Tiling.spaces.forEach(s => {
+    Module.Tiling().spaces.forEach(s => {
         s.workspaceLabel.clutter_text.set_font_description(menu.label.clutter_text.font_description);
     });
     fixWorkspaceIndicator();
@@ -627,30 +620,30 @@ function enable () {
 
     signals.connect(Main.overview, 'showing', fixTopBar);
     signals.connect(Main.overview, 'hidden', () => {
-        if (Tiling.spaces.selectedSpace.showTopBar)
+        if (Module.Tiling().spaces.selectedSpace.showTopBar)
             return;
         fixTopBar();
     });
 
-    signals.connect(Settings.settings, 'changed::disable-topbar-styling', (settings, key) => {
-        const status = prefs.disable_topbar_styling ? 'DISABLED' : 'ENABLED';
+    signals.connect(Module.GSettings(), 'changed::disable-topbar-styling', (settings, key) => {
+        const status = prefs().disable_topbar_styling ? 'DISABLED' : 'ENABLED';
         ExtensionModule.notify(
             `PaperWM: TopBar styling has been ${status}`, 
             `A restart of Gnome is required! (e.g. logout then login again)`)
     });
 
-    signals.connect(Settings.settings, 'changed::show-window-position-bar', (settings, key) => {
-        const spaces = Tiling.spaces;
+    signals.connect(Module.GSettings(), 'changed::show-window-position-bar', (settings, key) => {
+        const spaces = Module.Tiling().spaces;
         spaces.setSpaceTopbarElementsVisible(false);
         spaces.forEach(s => s.layout(false));
         spaces.showWindowPositionBarChanged();
     });
 
-    signals.connect(Settings.settings, 'changed::show-workspace-indicator', (settings, key) => {
+    signals.connect(Module.GSettings(), 'changed::show-workspace-indicator', (settings, key) => {
         fixWorkspaceIndicator();
     });
 
-    signals.connect(Settings.settings, 'changed::show-focus-mode-icon', (settings, key) => {
+    signals.connect(Module.GSettings(), 'changed::show-focus-mode-icon', (settings, key) => {
         fixFocusModeIcon();
     });
 
@@ -685,7 +678,7 @@ function disable() {
 }
 
 function setClearStyle() {
-    if (prefs.disable_topbar_styling) {
+    if (prefs().disable_topbar_styling) {
         return;
     }
     removeStyles();
@@ -693,7 +686,7 @@ function setClearStyle() {
 }
 
 function setTransparentStyle() {
-    if (prefs.disable_topbar_styling) {
+    if (prefs().disable_topbar_styling) {
         return;
     }
     removeStyles();
@@ -710,19 +703,19 @@ function removeStyles() {
  * Applies correct style based on whether we use the windowPositionBar or not.
  */
 function fixStyle() {
-    prefs.show_window_position_bar ? setClearStyle() : setTransparentStyle();
+    prefs().show_window_position_bar ? setClearStyle() : setTransparentStyle();
 }
 
 function fixTopBar() {
-    let space = Tiling.spaces?.monitors.get(panelMonitor) ?? false;
+    let space = Module.Tiling().spaces?.monitors.get(panelMonitor) ?? false;
     if (!space)
         return;
 
-    let normal = !Main.overview.visible && !Tiling.inPreview;
+    let normal = !Main.overview.visible && !Module.Tiling().inPreview;
     // selected is current (tiled) selected window (can be different to focused window)
     let selected = space.selectedWindow;
     let focused = display.focus_window;
-    let focusIsFloatOrScratch = focused && (space.isFloating(focused) || Scratch.isScratchWindow(focused));
+    let focusIsFloatOrScratch = focused && (space.isFloating(focused) || Module.Scratch().isScratchWindow(focused));
     // check if is currently fullscreened (check focused-floating, focused-scratch, and selected/tiled window)
     let fullscreen = focusIsFloatOrScratch ? focused.fullscreen : selected && selected.fullscreen;
 
@@ -740,13 +733,13 @@ function fixTopBar() {
 }
 
 function fixWorkspaceIndicator() {
-    prefs.show_workspace_indicator ? menu.show() : menu.hide();
-    Tiling.spaces.forEach(s => s.showWorkspaceIndicator());
+    prefs().show_workspace_indicator ? menu.show() : menu.hide();
+    Module.Tiling().spaces.forEach(s => s.showWorkspaceIndicator());
 }
 
 function fixFocusModeIcon() {
-    prefs.show_focus_mode_icon ? focusButton.show() : focusButton.hide();
-    Tiling.spaces.forEach(s => s.showFocusModeIcon());
+    prefs().show_focus_mode_icon ? focusButton.show() : focusButton.hide();
+    Module.Tiling().spaces.forEach(s => s.showFocusModeIcon());
 }
 
 /**
@@ -754,11 +747,11 @@ function fixFocusModeIcon() {
    let workspaceIndex = 0
 */
 function updateWorkspaceIndicator(index) {
-    let spaces = Tiling.spaces;
+    let spaces = Module.Tiling().spaces;
     let space = spaces && spaces.spaceOf(workspaceManager.get_workspace_by_index(index));
     let onMonitor = space && space.monitor === panelMonitor;
-    let nav = Navigator.navigator;
-    if (onMonitor || (Tiling.inPreview && nav && nav.from.monitor === panelMonitor)) {
+    let nav = Module.Navigator().navigator;
+    if (onMonitor || (Module.Tiling().inPreview && nav && nav.from.monitor === panelMonitor)) {
         setWorkspaceName(space.name);
 
         // also update focus mode
@@ -774,12 +767,12 @@ function updateMonitor() {
     let primaryMonitor = Main.layoutManager.primaryMonitor;
     // if panelMonitor has changed, then update layouts on workspaces
     if (panelMonitor !== primaryMonitor) {
-        Utils.later_add(Meta.LaterType.IDLE, () => {
-            Tiling.spaces?.forEach(s => s.layout());
+        Module.Utils().later_add(Meta.LaterType.IDLE, () => {
+            Module.Tiling().spaces?.forEach(s => s.layout());
 
             // if to show window positon bar, then update across workspaces
-            if (prefs.show_window_position_bar) {
-                Tiling.spaces?.setSpaceTopbarElementsVisible();
+            if (prefs().show_window_position_bar) {
+                Module.Tiling().spaces?.setSpaceTopbarElementsVisible();
             }
             fixStyle();
         });

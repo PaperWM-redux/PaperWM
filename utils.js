@@ -1,15 +1,14 @@
-var Extension = imports.misc.extensionUtils.getCurrentExtension();
-var {GLib, Clutter, Meta, GObject} = imports.gi;
-var St = imports.gi.St;
-var GdkPixbuf = imports.gi.GdkPixbuf;
-var Cogl = imports.gi.Cogl;
-var Main = imports.ui.main;
+const Module = imports.misc.extensionUtils.getCurrentExtension().imports.module;
+const {GLib, Clutter, Meta, GObject} = imports.gi;
+const St = imports.gi.St;
+const GdkPixbuf = imports.gi.GdkPixbuf;
+const Cogl = imports.gi.Cogl;
+const Main = imports.ui.main;
+const Mainloop = imports.mainloop;
 
-var workspaceManager = global.workspace_manager;
-var display = global.display;
-var WindowTracker = imports.gi.Shell.WindowTracker;
-
-var Tiling = Extension.imports.tiling;
+const workspaceManager = global.workspace_manager;
+const display = global.display;
+const WindowTracker = imports.gi.Shell.WindowTracker;
 
 var version = imports.misc.config.PACKAGE_VERSION.split('.').map(Number);
 var registerClass = GObject.registerClass;
@@ -22,11 +21,7 @@ function debug() {
     if (filter === false)
         return;
     if (debug_all || filter === true)
-        log(Array.prototype.join.call(arguments, " | "));
-}
-
-function warn(...args) {
-    log("WARNING:", ...args);
+        console.debug(Array.prototype.join.call(arguments, " | "));
 }
 
 function assert(condition, message, ...dump) {
@@ -39,7 +34,7 @@ function withTimer(message, fn) {
     let start = GLib.get_monotonic_time();
     let ret = fn();
     let stop = GLib.get_monotonic_time();
-    log(`${message} ${((stop - start)/1000).toFixed(1)}ms`);
+    console.debug(`${message} ${((stop - start)/1000).toFixed(1)}ms`);
 }
 
 function print_stacktrace(error) {
@@ -55,7 +50,7 @@ function print_stacktrace(error) {
     let filtered = trace.filter((frame) => {
         return frame !== "wrapper@resource:///org/gnome/gjs/modules/lang.js:178";
     });
-    log(`JS ERROR: ${error}\n ${trace.join('\n')}`);
+    console.error(`JS ERROR: ${error}\n ${trace.join('\n')}`);
 }
 
 function framestr(rect) {
@@ -154,16 +149,16 @@ function setBackgroundImage(actor, resource_path) {
     // resource://{resource_path}
     let image = new Clutter.Image();
 
-    let pixbuf = GdkPixbuf.Pixbuf.new_from_resource(resource_path)
+    let pixbuf = GdkPixbuf.Pixbuf.new_from_resource(resource_path);
 
-    image.set_data(pixbuf.get_pixels() ,
-                   pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888
-                   : Cogl.PixelFormat.RGB_888,
-                   pixbuf.get_width() ,
-                   pixbuf.get_height() ,
-                   pixbuf.get_rowstride());
+    image.set_data(pixbuf.get_pixels(),
+        pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888
+            : Cogl.PixelFormat.RGB_888,
+        pixbuf.get_width(),
+        pixbuf.get_height(),
+        pixbuf.get_rowstride());
     actor.set_content(image);
-    actor.content_repeat = Clutter.ContentRepeat.BOTH
+    actor.content_repeat = Clutter.ContentRepeat.BOTH;
 }
 
 
@@ -175,7 +170,7 @@ function setDevGlobals() {
     meta_window = display.focus_window;
     workspace = workspaceManager.get_active_workspace();
     actor = metaWindow.get_compositor_private();
-    space = Tiling.spaces.spaceOfWindow(metaWindow);
+    space = Module.Tiling().spaces.spaceOfWindow(metaWindow);
     app = WindowTracker.get_default().get_window_app(metaWindow);
 }
 
@@ -229,7 +224,6 @@ function toggleCloneMarks() {
         if (metaWindow.clone) {
             metaWindow.clone.opacity = 190;
             metaWindow.clone.__oldOpacity = 190;
-
             metaWindow.clone.background_color = Clutter.color_from_string("red")[1];
         }
     }
@@ -304,7 +298,6 @@ function indent(level, str) {
     return blank + str
 }
 
-
 function mkFmt({nameOnly}={nameOnly: false}) {
     function defaultFmt(actor, prefix="") {
         const fmtNum = num => num.toFixed(0);
@@ -369,7 +362,7 @@ function printActorTree(node, fmt=mkFmt(), options={}, state=null) {
         }
     }
     if (!collapse) {
-        log(indent(state.level, fmt(node, state.actorPrefix)));
+        console.log(indent(state.level, fmt(node, state.actorPrefix)));
         state.actorPrefix = "";
         state.level += 1;
     }
@@ -470,7 +463,7 @@ function trace(topic, ...args) {
     } else {
         let trace = shortTrace(1).join(" < ");
         let extraInfo = args.length > 0 ? "\n\t" + args.map(x => x.toString()).join("\n\t") : ""
-        log(topic, trace, extraInfo);
+        console.log(topic, trace, extraInfo);
     }
 }
 
@@ -481,7 +474,7 @@ function windowTrace(topic, metaWindow, ...rest) {
         return;
     }
 
-    log(topic, infoMetaWindow(metaWindow).join("\n"), ...rest.join("\n"));
+    console.log(topic, infoMetaWindow(metaWindow).join("\n"), ...rest.join("\n"));
 }
 
 function infoMetaWindow(metaWindow) {
@@ -503,7 +496,7 @@ function infoMetaWindow(metaWindow) {
     if (metaWindow.above) {
         info.push(`- above`);
     }
-    if (Extension.imports.scratch.isScratchWindow(metaWindow)) {
+    if (Module.Scratch().isScratchWindow(metaWindow)) {
         info.push(`- scratch`);
     }
     return info;
@@ -552,5 +545,14 @@ function later_add(...args) {
     // Gnome 42, 43 used Meta.later_add
     else if (Meta.later_add) {
         Meta.later_add(...args);
+    }
+}
+
+/**
+ * Convenience method for removing a timeout source from Mainloop.
+ */
+function timeout_remove(timeoutId) {
+    if (timeoutId) {
+        Mainloop.source_remove(timeoutId);
     }
 }
