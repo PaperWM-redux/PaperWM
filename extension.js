@@ -32,8 +32,8 @@ const Main = imports.ui.main;
      - gestures is responsible for 3-finger swiping (only works in wayland).
  */
 const modules = [
-    'kludges', 'settings', 'keybindings', 'gestures', 'tiling', 'navigator', 'scratch',
-    'liveAltTab', 'utils', 'stackoverlay', 'app', 'topbar',
+    'settings', 'keybindings', 'gestures', 'tiling', 'navigator', 'scratch',
+    'liveAltTab', 'utils', 'stackoverlay', 'app', 'topbar', 'kludges',
 ];
 
 /**
@@ -45,7 +45,6 @@ function run(method) {
         if (!safeCall(name, method))
             return false;
     }
-
     return true;
 }
 
@@ -81,8 +80,7 @@ function enable() {
 }
 
 function disable() {
-    console.log('#PaperWM disable');
-
+    console.log('#PaperWM disabled');
     run('disable');
 
     disableUserStylesheet();
