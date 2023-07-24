@@ -1,9 +1,11 @@
 /**
-   Settings utility shared between the running extension and the preference UI.
+    Settings utility shared between the running extension and the preference UI.
+    settings.js shouldn't depend on other modules (e.g with `imports` for other modules
+    at the top).
  */
-const Module = imports.misc.extensionUtils.getCurrentExtension().imports.module;
-const {Gio, GLib, Gtk} = imports.gi;
-const Mainloop = imports.mainloop;
+const ExtensionUtils = imports.misc.extensionUtils;
+const Extension = ExtensionUtils.getCurrentExtension();
+const { Gio, GLib, Gtk } = imports.gi;
 
 var workspaceSettingsCache = {};
 
@@ -13,26 +15,6 @@ var KEYBINDINGS_KEY = 'org.gnome.shell.extensions.paperwm.keybindings';
 
 // This is the value mutter uses for the keyvalue of above_tab
 var META_KEY_ABOVE_TAB = 0x2f7259c9;
-
-function setVerticalMargin() {
-    let vMargin = gsettings.get_int('vertical-margin');
-    let gap = gsettings.get_int('window-gap');
-    prefs.vertical_margin = Math.max(Math.round(gap / 2), vMargin);
-}
-let timerId;
-function onWindowGapChanged() {
-    setVerticalMargin();
-    if (timerId) {
-        Mainloop.source_remove(timerId);
-    }
-    timerId = Mainloop.timeout_add(500, () => {
-        Module.Extension.imports.tiling.spaces.mru().forEach(space => {
-            space.layout();
-        });
-        timerId = null;
-        return false; // on return false destroys timeout
-    });
-}
 
 function setState($, key) {
     let value = gsettings.get_value(key);
@@ -44,7 +26,7 @@ var schemaSource;
 function getSchemaSource() {
     if (!schemaSource) {
         schemaSource = Gio.SettingsSchemaSource.new_from_directory(
-            GLib.build_filenamev([Module.Extension.path, "schemas"]),
+            GLib.build_filenamev([Extension.path, "schemas"]),
             Gio.SettingsSchemaSource.get_default(),
             false
         );
@@ -78,10 +60,11 @@ function getWorkspaceList() {
     return workspaceList;
 }
 
-let gsettings;
 var prefs;
+let utils, gsettings;
 function enable() {
-    gsettings = Module.GSettings();
+    utils = Extension.imports.utils;
+    gsettings = ExtensionUtils.getSettings();
     prefs = {};
     ['window-gap', 'vertical-margin', 'vertical-margin-bottom', 'horizontal-margin',
         'workspace-colors', 'default-background', 'animation-time', 'use-workspace-name',
@@ -94,14 +77,9 @@ function enable() {
         return Math.min(15, this.horizontal_margin);
     });
     gsettings.connect('changed', setState);
-    gsettings.connect('changed::vertical-margin', onWindowGapChanged);
-    gsettings.connect('changed::vertical-margin-bottom', onWindowGapChanged);
-    gsettings.connect('changed::window-gap', onWindowGapChanged);
 
     // connect to settings and update winprops array when it's updated
     gsettings.connect('changed::winprops', () => reloadWinpropsFromGSettings());
-
-    setVerticalMargin();
 
     // A intermediate window is created before the prefs dialog is created.
     // Prevent it from being inserted into the tiling causing flickering and general disorder
@@ -120,38 +98,14 @@ function enable() {
 }
 
 function disable() {
-    Module.Utils().timeout_remove(timerId);
-    timerId = null;
-
     workspaceSettingsCache = {};
+    utils = null;
     gsettings.run_dispose();
     gsettings = null;
     prefs = null;
     schemaSource = null;
     workspaceList = null;
     conflictSettings = null;
-}
-
-/**
- * Returns the default focus mode (can be user-defined).
- */
-function getDefaultFocusMode() {
-    // find matching focus mode
-    const mode = prefs.default_focus_mode;
-    const modes = Module.Tiling().FocusModes;
-    let result = null;
-    Object.entries(modes).forEach(([k,v]) => {
-        if (v === mode) {
-            result = k;
-        }
-    });
-
-    // if found return, otherwise return default
-    if (result) {
-        return modes[result];
-    } else {
-        return modes.DEFAULT;
-    }
 }
 
 /// Workspaces
@@ -192,7 +146,7 @@ function getWorkspaceSettingsByUUID(uuid) {
 function findWorkspaceSettingsByName(regex) {
     let list = getWorkspaceList().get_strv('list');
     let settingss = list.map(getWorkspaceSettingsByUUID);
-    return Module.Utils().zip(list, settingss, settingss.map(s => s.get_string('name')))
+    return utils.zip(list, settingss, settingss.map(s => s.get_string('name')))
         .filter(([uuid, s, name]) => name.match(regex));
 }
 
@@ -234,7 +188,7 @@ function deleteWorkspaceSettings(uuid) {
 function printWorkspaceSettings() {
     let list = getWorkspaceList().get_strv('list');
     let settings = list.map(getWorkspaceSettingsByUUID);
-    let zipped = Module.Utils().zip(list, settings);
+    let zipped = utils.zip(list, settings);
     const key = s => s[1].get_int('index');
     zipped.sort((a, b) => key(a) - key(b));
     for (let [uuid, s] of zipped) {
@@ -329,7 +283,7 @@ function findConflicts(schemas) {
     schemas = schemas || getConflictSettings();
     let conflicts = [];
     const paperMap =
-          generateKeycomboMap(Module.ExtensionUtils.getSettings(KEYBINDINGS_KEY));
+          generateKeycomboMap(ExtensionUtils.getSettings(KEYBINDINGS_KEY));
 
     for (let settings of schemas) {
         const against = generateKeycomboMap(settings);

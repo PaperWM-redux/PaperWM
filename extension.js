@@ -1,5 +1,7 @@
-const Module = imports.misc.extensionUtils.getCurrentExtension().imports.module;
-const {Gio, GLib, St} = imports.gi;
+const ExtensionUtils = imports.misc.extensionUtils;
+const Extension = ExtensionUtils.getCurrentExtension();
+const Navigator = Extension.imports.navigator;
+const { Gio, GLib, St } = imports.gi;
 const Util = imports.misc.util;
 const MessageTray = imports.ui.messageTray;
 const Main = imports.ui.main;
@@ -30,9 +32,13 @@ const Main = imports.ui.main;
      - topbar adds the workspace name to the topbar and styles it.
 
      - gestures is responsible for 3-finger swiping (only works in wayland).
+
+     Notes of ordering:
+        - several modules import settings, so settings should be before them;
+          - settings.js shouldn't depend on other modules (e.g with `imports` at the top).
  */
 const modules = [
-    'settings', 'keybindings', 'gestures', 'tiling', 'navigator', 'scratch',
+    'settings', 'keybindings', 'gestures', 'navigator', 'tiling', 'scratch',
     'liveAltTab', 'utils', 'stackoverlay', 'app', 'topbar', 'kludges',
 ];
 
@@ -50,7 +56,7 @@ function run(method) {
 
 function safeCall(name, method) {
     try {
-        let module = Module.Extension.imports[name];
+        let module = Extension.imports[name];
         if (module && module[method]) {
             console.debug("#paperwm", `${method} ${name}`);
         }
@@ -79,8 +85,21 @@ function enable() {
     }
 }
 
+/**
+ * Prepares PaperWM for disable across modules.
+ */
+function prepareForDisable() {
+    /**
+     * Finish any navigation (e.g. workspace switch view).
+     * Can put PaperWM in a breakable state of lock/disable
+     * while navigating.
+     */
+    Navigator.finishNavigation();
+}
+
 function disable() {
     console.log('#PaperWM disabled');
+    prepareForDisable();
     run('disable');
 
     disableUserStylesheet();
@@ -113,7 +132,7 @@ function updateUserConfigMetadata() {
 
     try {
         const configDir = getConfigDir();
-        const metadata = Module.Extension.dir.get_child("metadata.json");
+        const metadata = Extension.dir.get_child("metadata.json");
         metadata.copy(configDir.get_child("metadata.json"), Gio.FileCopyFlags.OVERWRITE, null, null);
     } catch (error) {
         console.error('PaperWM', `could not update user config metadata.json: ${error}`);
@@ -128,7 +147,7 @@ function installConfig() {
     }
 
     // Copy the user.js template to the config directory
-    const user = Module.Extension.dir.get_child("config/user.js");
+    const user = Extension.dir.get_child("config/user.js");
     user.copy(configDir.get_child("user.js"), Gio.FileCopyFlags.NONE, null, null);
 }
 
@@ -153,7 +172,7 @@ function enableUserConfig() {
 
     // add to searchpath if user has config file and action user.js
     if (hasUserConfigFile()) {
-        let SearchPath = Module.Extension.imports.searchPath;
+        let SearchPath = Extension.imports.searchPath;
         let path = getConfigDir().get_path();
         if (!SearchPath.includes(path)) {
             SearchPath.push(path);
