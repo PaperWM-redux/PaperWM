@@ -1,16 +1,15 @@
-const { GLib, Clutter, Meta, St, GObject, GdkPixbuf, Cogl } = imports.gi;
+const ExtensionUtils = imports.misc.extensionUtils;
+const Extension = ExtensionUtils.getCurrentExtension();
+const Lib = Extension.imports.lib;
+const { GLib, Clutter, Meta, St, GdkPixbuf, Cogl } = imports.gi;
 const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
-
-const workspaceManager = global.workspace_manager;
 const display = global.display;
-const WindowTracker = imports.gi.Shell.WindowTracker;
 
 var version = imports.misc.config.PACKAGE_VERSION.split('.').map(Number);
-var registerClass = GObject.registerClass;
 
 var debug_all = false; // Turn off by default
-var debug_filter = {'#paperwm': true, '#stacktrace': true};
+var debug_filter = { '#paperwm': true, '#stacktrace': true };
 function debug() {
     let keyword = arguments[0];
     let filter = debug_filter[keyword];
@@ -80,7 +79,7 @@ function ppModiferState(state) {
             mods.push(mod);
         }
     }
-    return mods.join(", ")
+    return mods.join(", ");
 }
 
 /**
@@ -93,55 +92,6 @@ function dynamic_function_ref(handler_name, owner_obj) {
     return function() {
         owner_obj[handler_name].apply(this, arguments);
     }
-}
-
-/**
-   Find the first x in `values` that's larger than `cur`.
-   Cycle to first value if no larger value is found.
-   `values` should be sorted in ascending order.
- */
-function findNext(cur, values, slack=0) {
-    for (let i = 0; i < values.length; i++) {
-        let x = values[i];
-        if (cur < x) {
-            if (x - cur < slack) {
-                // Consider `cur` practically equal to `x`
-                continue;
-            } else {
-                return x;
-            }
-        }
-    }
-    return values[0]; // cycle
-}
-
-function arrayEqual(a, b) {
-    if (a === b)
-        return true;
-    if (!a || !b)
-        return false;
-    if (a.length !== b.length)
-        return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i])
-            return false;
-    }
-    return true;
-}
-
-/** Is the floating point numbers equal enough */
-function eq(a, b, epsilon=0.00000001) {
-    return Math.abs(a-b) < epsilon;
-}
-
-function swap(array, i, j) {
-    let temp = array[i];
-    array[i] = array[j];
-    array[j] = temp;
-}
-
-function in_bounds(array, i) {
-    return i >= 0 && i < array.length;
 }
 
 function isPointInsideActor(actor, x, y) {
@@ -243,19 +193,6 @@ function toggleCloneMarks() {
     }
 }
 
-function sum(array) {
-    return array.reduce((a, b) => a + b, 0);
-}
-
-function zip(...as) {
-    let r = [];
-    let minLength = Math.min(...as.map(x => x.length));
-    for (let i = 0; i < minLength; i++) {
-        r.push(as.map(a => a[i]));
-    }
-    return r;
-}
-
 function warpPointer(x, y) {
     let backend = Clutter.get_default_backend();
     let seat = backend.get_default_seat();
@@ -283,17 +220,8 @@ function monitorOfPoint(x, y) {
     return null;
 }
 
-
-function indent(level, str) {
-    let blank = ""
-    for (let i = 0; i < level; i++) {
-        blank += "  "
-    }
-    return blank + str
-}
-
-function mkFmt({nameOnly}={nameOnly: false}) {
-    function defaultFmt(actor, prefix="") {
+function mkFmt({ nameOnly } = { nameOnly: false }) {
+    function defaultFmt(actor, prefix = "") {
         const fmtNum = num => num.toFixed(0);
         let extra = [
             `${actor.get_position().map(fmtNum)}`,
@@ -356,7 +284,7 @@ function printActorTree(node, fmt=mkFmt(), options={}, state=null) {
         }
     }
     if (!collapse) {
-        console.log(indent(state.level, fmt(node, state.actorPrefix)));
+        console.log(Lib.indent(state.level, fmt(node, state.actorPrefix)));
         state.actorPrefix = "";
         state.level += 1;
     }
