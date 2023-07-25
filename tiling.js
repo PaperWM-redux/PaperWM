@@ -6,6 +6,7 @@ const Lib = Extension.imports.lib;
 const Workspace = Extension.imports.workspace;
 const Gestures = Extension.imports.gestures;
 const Navigator = Extension.imports.navigator;
+const Grab = Extension.imports.grab;
 const TopBar = Extension.imports.topbar;
 const Scratch = Extension.imports.scratch;
 const Easer = Extension.imports.utils.easer;
@@ -17,26 +18,24 @@ const Mainloop = imports.mainloop;
 const Signals = imports.signals;
 const debug = Extension.imports.utils.debug;
 
-
-/**@type {import('@gi-types/meta').WorkspaceManager} */
-var workspaceManager = global.workspace_manager;
-var display = global.display;
+const workspaceManager = global.workspace_manager;
+const display = global.display;
 
 /** @type {Spaces} */
-var spaces;
+var spaces; // export
 
-var borderWidth = 8;
+let borderWidth = 8;
 // Mutter prevints windows from being placed further off the screen than 75 pixels.
-var stack_margin = 75;
+var stack_margin = 75; // export
 
 // Some features use this to determine if to sizes is considered equal. ie. `abs(w1 - w2) < sizeSlack`
-var sizeSlack = 30;
+let sizeSlack = 30;
 
-var PreviewMode = { NONE: 0, STACK: 1, SEQUENTIAL: 2 };
-var inPreview = PreviewMode.NONE;
+var PreviewMode = { NONE: 0, STACK: 1, SEQUENTIAL: 2 }; // export
+var inPreview = PreviewMode.NONE; // export
 
 // DEFAULT mode is normal/original PaperWM window focus behaviour
-var FocusModes = { DEFAULT: 0, CENTER: 1 };
+var FocusModes = { DEFAULT: 0, CENTER: 1 }; // export
 
 /**
    Scrolled and tiled per monitor workspace.
@@ -103,7 +102,7 @@ var Space = class Space extends Array {
 
         // default focusMode (can be overriden by saved user pref in Space.init method)
         this.focusMode = FocusModes.DEFAULT;
-        this.focusModeIcon = new Extension.imports.topbar.FocusIcon({
+        this.focusModeIcon = new TopBar.FocusIcon({
             name: 'panel',
             style_class: 'space-focus-mode-icon',
         })
@@ -225,8 +224,8 @@ var Space = class Space extends Array {
 
         this.layout(false);
 
-        this.signals.connect(workspace, "window-added", Utils.dynamic_function_ref("add_handler", Extension.imports.tiling));
-        this.signals.connect(workspace, "window-removed", Utils.dynamic_function_ref("remove_handler", Extension.imports.tiling));
+        this.signals.connect(workspace, "window-added", (ws, metawindow) => add_handler(ws, metawindow));
+        this.signals.connect(workspace, "window-removed", (ws, metawindow) => remove_handler(ws, metawindow));
         this.signals.connect(Main.overview, 'showing', this.startAnimate.bind(this));
         this.signals.connect(Main.overview, 'hidden', () => {
             if (!spaces.isActiveSpace(this)) {
@@ -3168,7 +3167,7 @@ function grabBegin(metaWindow, type) {
         // Don't handle pushModal grabs and SCD button (close/minimize/etc.) grabs
         break;
     case Meta.GrabOp.KEYBOARD_MOVING:
-        inGrab = new Extension.imports.grab.MoveGrab(metaWindow, type);
+        inGrab = new Grab.MoveGrab(metaWindow, type);
         if (!isTiled(metaWindow)) {
             return;
         }
@@ -3187,7 +3186,7 @@ function grabBegin(metaWindow, type) {
             return;
         }
 
-        inGrab = new Extension.imports.grab.MoveGrab(metaWindow, type);
+        inGrab = new Grab.MoveGrab(metaWindow, type);
 
         if (Utils.getModiferState() & Clutter.ModifierType.CONTROL_MASK) {
             inGrab.begin();
@@ -3214,7 +3213,7 @@ function grabBegin(metaWindow, type) {
     case Meta.GrabOp.KEYBOARD_RESIZING_S:
     case Meta.GrabOp.KEYBOARD_RESIZING_SE:
     case Meta.GrabOp.KEYBOARD_RESIZING_W:
-        inGrab = new Extension.imports.grab.ResizeGrab(metaWindow, type);
+        inGrab = new Grab.ResizeGrab(metaWindow, type);
         break;
     }
 }
