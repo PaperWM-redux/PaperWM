@@ -728,6 +728,9 @@ function fixTopBar() {
     else if (normal && fullscreen) {
         panelBox.hide();
     }
+    else if (Tiling.inPreview) {
+        panelBox.hide();
+    }
     else {
         panelBox.scale_y = 1;
         panelBox.show();
@@ -761,12 +764,21 @@ function updateWorkspaceIndicator(index) {
     }
 }
 
+/**
+ * Refreshes topbar workspace indicator.
+ */
+function refreshWorkspaceIndicator() {
+    let panelSpace = Tiling.spaces.monitors.get(panelMonitor);
+    updateWorkspaceIndicator(panelSpace.workspace.index());
+}
+
 function setWorkspaceName (name) {
     menu && menu.setName(name);
 }
 
 function updateMonitor() {
     let primaryMonitor = Main.layoutManager.primaryMonitor;
+
     // if panelMonitor has changed, then update layouts on workspaces
     if (panelMonitor !== primaryMonitor) {
         Utils.later_add(Meta.LaterType.IDLE, () => {
@@ -779,5 +791,7 @@ function updateMonitor() {
             fixStyle();
         });
     }
+
+    // update topbar monitor
     panelMonitor = primaryMonitor;
 }

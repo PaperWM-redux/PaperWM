@@ -1681,7 +1681,10 @@ var Spaces = class Spaces extends Map {
         }
 
         let finish = () => {
+            // update topbar workspace indicator
             TopBar.updateMonitor();
+            TopBar.refreshWorkspaceIndicator();
+
             let activeSpace = this.get(workspaceManager.get_active_workspace());
             let mru = this.mru();
             this.selectedSpace = mru[0];
@@ -1753,9 +1756,6 @@ var Spaces = class Spaces extends Map {
                 mru = mru.slice(1);
             }
         }
-
-        // update old monitors here
-        oldMonitors = new Map(this.monitors);
 
         // Reset any removed monitors
         mru.forEach(space => {
@@ -2266,7 +2266,6 @@ var Spaces = class Spaces extends Map {
         inPreview = PreviewMode.NONE;
 
         TopBar.updateWorkspaceIndicator(to.workspace.index());
-
         this.selectedSpace = to;
 
         to.show();
@@ -2306,18 +2305,24 @@ var Spaces = class Spaces extends Map {
             // Fixes a weird bug where mouse input stops
             // working after mousing to another monitor on
             // X11.
-            !Meta.is_wayland_compositor() && to.startAnimate();
+            if (!Meta.is_wayland_compositor()) {
+                to.startAnimate();
+            }
 
             to.moveDone();
-            callback && callback();
+            if (callback) {
+                callback();
+            }
         };
 
         if (currentPreviewMode === PreviewMode.SEQUENTIAL) {
             this._animateToSpaceOrdered(to, true);
             let t = to.actor.get_transition('y');
             if (t) {
-                t && t.connect('stopped', (t, finished) => {
-                    finished && onComplete();
+                t.connect('stopped', (timeline, finished) => {
+                    if (finished) {
+                        onComplete();
+                    }
                 });
             } else {
                 // When switching between monitors there's no animation we can
@@ -2328,7 +2333,6 @@ var Spaces = class Spaces extends Map {
         }
 
         this._updateMonitor();
-
         Easer.addEase(to.actor,
             {
                 x: 0,
@@ -2338,7 +2342,6 @@ var Spaces = class Spaces extends Map {
                 time: Settings.prefs.animation_time,
                 onComplete,
             });
-
 
         // Animate all the spaces above `to` down below the monitor. We get
         // these spaces by looking at siblings of upper most actor, ie. the
@@ -2473,6 +2476,7 @@ var Spaces = class Spaces extends Map {
                 s.enableWindowPositionBar();
             });
         }
+
         if (!Settings.prefs.show_window_position_bar) {
             // should be in normal topbar mode
             this.forEach(s => {
@@ -2565,9 +2569,9 @@ function is_override_redirect(metaWindow) {
     // Note: is_overrride_redirect() seem to be false for all wayland windows
     const windowType = metaWindow.windowType;
     return (
-        metaWindow.is_override_redirect()
-            || windowType === Meta.WindowType.DROPDOWN_MENU
-            || windowType === Meta.WindowType.TOOLTIP
+        metaWindow.is_override_redirect() ||
+        windowType === Meta.WindowType.DROPDOWN_MENU ||
+        windowType === Meta.WindowType.TOOLTIP
     );
 }
 
@@ -2580,11 +2584,11 @@ function registerWindow(metaWindow) {
         // Can now happen when setting session-modes to "unlock-dialog" or
         // resetting gnome-shell in-place (e.g. on X11)
         console.warn("window already registered", metaWindow.title);
-        return false
+        return false;
     }
 
     let actor = metaWindow.get_compositor_private();
-    let cloneActor = new Clutter.Clone({source: actor});
+    let cloneActor = new Clutter.Clone({ source: actor });
     let clone = new Clutter.Actor();
 
     clone.add_actor(cloneActor);
@@ -2600,7 +2604,6 @@ function registerWindow(metaWindow) {
     signals.connect(metaWindow, 'notify::fullscreen', TopBar.fixTopBar);
     signals.connect(metaWindow, 'notify::minimized', minimizeWrapper);
     signals.connect(actor, 'show', showWrapper);
-
     signals.connect(actor, 'destroy', destroyHandler);
 
     return true;
@@ -2659,10 +2662,11 @@ function resizeHandler(metaWindow) {
 
     if (!space._inLayout && needLayout) {
         // Restore window position when eg. exiting fullscreen
-        !Navigator.navigating && selected
-            && move_to(space, metaWindow, {
-                x: metaWindow.get_frame_rect().x - space.monitor.x
+        if (!Navigator.navigating && selected) {
+            move_to(space, metaWindow, {
+                x: metaWindow.get_frame_rect().x - space.monitor.x,
             });
+        }
 
         // Resizing from within a size-changed signal is troube (#73). Queue instead.
         space.queueLayout();
@@ -2738,6 +2742,14 @@ function enable(errorNotification) {
             s.monitor.clickOverlay.show();
         });
         TopBar.fixTopBar();
+
+        // on idle update space topbar elements and name
+        Utils.later_add(Meta.LaterType.IDLE, () => {
+            spaces.forEach(s => {
+                s.setSpaceTopbarElementsVisible(false);
+                s.updateName();
+            });
+        });
     }
 
     if (Main.layoutManager._startingUp) {
@@ -2760,8 +2772,7 @@ function disable () {
     grabSignals.destroy();
     signals.destroy();
 
-    // save spaces map for restore (monitors are alrady stored)
-    oldSpaces = new Map(spaces);
+    oldMonitors = new Map(spaces.monitors);
     oldSpaces.forEach(space => {
         let windows = space.getWindows();
         let selected = windows.indexOf(space.selectedWindow);
