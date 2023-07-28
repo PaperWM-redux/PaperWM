@@ -2004,7 +2004,7 @@ var Spaces = class Spaces extends Map {
 
             let selected = space.selectedWindow;
             if (selected && selected.fullscreen && space !== toSpace) {
-                selected.clone.y = Main.panel.actor.height + Settings.prefs.vertical_margin;
+                selected.clone.y = Main.panel.height + Settings.prefs.vertical_margin;
             }
         });
     }
@@ -2025,7 +2025,7 @@ var Spaces = class Spaces extends Map {
         let selected = this.selectedSpace.selectedWindow;
         if (selected && selected.fullscreen) {
             Easer.addEase(selected.clone, {
-                y: Main.panel.actor.height + Settings.prefs.vertical_margin,
+                y: Main.panel.height + Settings.prefs.vertical_margin,
                 time: Settings.prefs.animation_time,
             });
         }
@@ -2167,7 +2167,7 @@ var Spaces = class Spaces extends Map {
             child !== sibling && cloneParent.set_child_below_sibling(child, sibling);
             let selected = space.selectedWindow;
             if (selected && selected.fullscreen) {
-                selected.clone.y = Main.panel.actor.height + Settings.prefs.vertical_margin;
+                selected.clone.y = Main.panel.height + Settings.prefs.vertical_margin;
             }
         });
 
@@ -2177,7 +2177,7 @@ var Spaces = class Spaces extends Map {
         let selected = space.selectedWindow;
         if (selected && selected.fullscreen) {
             Easer.addEase(selected.clone, {
-                y: Main.panel.actor.height + Settings.prefs.vertical_margin,
+                y: Main.panel.height + Settings.prefs.vertical_margin,
                 time: Settings.prefs.animation_time,
             });
         }
