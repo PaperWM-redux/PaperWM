@@ -1257,12 +1257,22 @@ border-radius: ${borderWidth}px;
         // if windowPositionBar shown, we want the topbar style to be transparent if visible
         if (Settings.prefs.show_window_position_bar) {
             if (changeTopBarStyle) {
-                visible ? TopBar.setTransparentStyle() : TopBar.setClearStyle();
+                if (visible && this.hasTopBar()) {
+                    TopBar.setTransparentStyle();
+                }
+                else {
+                    TopBar.setClearStyle();
+                }
             }
 
             // if on different monitor then override to show elements
             if (!this.hasTopBar()) {
                 visible = true;
+            }
+
+            // don't show elements on spaces with actual TopBar (unless inPreview)
+            if (this.hasTopBar() && !inPreview) {
+                visible = false;
             }
         }
 
@@ -1581,6 +1591,7 @@ var Spaces = class Spaces extends Map {
         super();
 
         this._initDone = false;
+        this._inPreviewProgress = false;
         this.clickOverlays = [];
         this.signals = new Utils.Signals();
         this.stack = [];
@@ -2055,7 +2066,7 @@ var Spaces = class Spaces extends Map {
 
         if (move && this.selectedSpace.selectedWindow) {
             const navigator = Navigator.getNavigator();
-            if (navigator._moving == null || 
+            if (navigator._moving === null ||
                 (Array.isArray(navigator._moving) && navigator._moving.length === 0)) {
                 takeWindow(this.selectedSpace.selectedWindow,
                     this.selectedSpace,
@@ -2076,6 +2087,11 @@ var Spaces = class Spaces extends Map {
 
         newSpace = monitorSpaces[to];
         this.selectedSpace = newSpace;
+
+        // if active (source space) is panelMonitor update indicator
+        if (currentSpace.monitor === TopBar.panelMonitor) {
+            TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
+        }
 
         const scale = 0.825;
         const padding_percentage = 4;
@@ -2106,6 +2122,11 @@ var Spaces = class Spaces extends Map {
         if (inPreview) {
             return;
         }
+
+        if (this._inPreviewProgress) {
+            return;
+        }
+        this._inPreviewProgress = true;
 
         inPreview = PreviewMode.STACK;
 
@@ -2163,8 +2184,10 @@ var Spaces = class Spaces extends Map {
             // Remove any lingering onComplete handlers from animateToSpace
             Easer.removeEase(space.actor);
 
-            if (mru[i - 1] === undefined)
+            if (mru[i - 1] === undefined) {
+                this._inPreviewProgress = false;
                 return;
+            }
             let child = space.clip;
             let sibling = mru[i - 1].clip;
             child !== sibling && cloneParent.set_child_below_sibling(child, sibling);
@@ -2182,6 +2205,9 @@ var Spaces = class Spaces extends Map {
             Easer.addEase(selected.clone, {
                 y: Main.panel.height + Settings.prefs.vertical_margin,
                 time: Settings.prefs.animation_time,
+                onComplete: () => {
+                    this._inPreviewProgress = false;
+                },
             });
         }
     }
@@ -2191,6 +2217,11 @@ var Spaces = class Spaces extends Map {
         if (inPreview === PreviewMode.SEQUENTIAL) {
             return;
         }
+
+        if (this._inPreviewProgress) {
+            return;
+        }
+        this._inPreviewProgress = true;
 
         const scale = 0.9;
         let space = this.getActiveSpace();
@@ -2225,15 +2256,24 @@ var Spaces = class Spaces extends Map {
             to = 0;
         }
 
-        if (to === from && Easer.isEasing(newSpace.actor))
+        if (to === from && Easer.isEasing(newSpace.actor)) {
+            this._inPreviewProgress = false;
             return;
+        }
 
         newSpace = mru[to];
         this.selectedSpace = newSpace;
 
+        // if active (source space) is panelMonitor update indicator
+        if (space.monitor === TopBar.panelMonitor) {
+            TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
+        }
+
         mru.forEach((space, i) => {
             let actor = space.actor;
-            let h, onComplete = () => {};
+            let h, onComplete = () => {
+                this._inPreviewProgress = false;
+            };
             if (to === i)
                 h = StackPositions.selected;
             else if (to + 1 === i)
@@ -2246,7 +2286,10 @@ var Spaces = class Spaces extends Map {
                 h = StackPositions.bottom;
 
             if (Math.abs(i - to) > 2) {
-                onComplete = () => space.hide();
+                onComplete = () => {
+                    space.hide();
+                    this._inPreviewProgress = false;
+                };
             } else {
                 space.show();
             }
