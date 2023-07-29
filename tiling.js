@@ -169,8 +169,6 @@ var Space = class Space extends Array {
         }
 
         this.setSettings(Workspace.getWorkspaceSettings(this.workspace.index()));
-        this.setMonitor(monitor, false);
-
         actor.set_pivot_point(0.5, 0);
 
         this.selectedWindow = null;
@@ -190,6 +188,9 @@ var Space = class Space extends Array {
         if (Settings.prefs.show_window_position_bar) {
             this.enableWindowPositionBar();
         }
+
+        // now set monitor for this space
+        this.setMonitor(monitor, false);
 
         if (doInit)
             this.init();
@@ -212,7 +213,6 @@ var Space = class Space extends Array {
         this.cloneContainer.x = this.targetX;
 
         // init window position bar and space topbar elements
-        this.windowPositionBarBackdrop.width = this.monitor.width;
         this.windowPositionBarBackdrop.height = TopBar.panelBox.height;
         this.setSpaceTopbarElementsVisible(false);
 
@@ -1177,7 +1177,7 @@ border-radius: ${borderWidth}px;
      * Enables or disables this space's window position bar.
      * @param {boolean} enable
      */
-    enableWindowPositionBar(enable=true) {
+    enableWindowPositionBar(enable = true) {
         if (enable) {
             [this.windowPositionBarBackdrop, this.windowPositionBar]
                 .forEach(i => this.actor.add_actor(i));
@@ -1408,6 +1408,9 @@ border-radius: ${borderWidth}px;
             this.createBackground();
             this.updateBackground();
             this.updateColor();
+
+            // update width of windowPositonBarBackdrop (to match monitor)
+            this.windowPositionBarBackdrop.width = monitor.width;
         }
 
         let background = this.background;
@@ -2072,8 +2075,6 @@ var Spaces = class Spaces extends Map {
         newSpace = monitorSpaces[to];
         this.selectedSpace = newSpace;
 
-        TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
-
         const scale = 0.825;
         const padding_percentage = 4;
         let last = monitorSpaces.length - 1;
@@ -2227,8 +2228,6 @@ var Spaces = class Spaces extends Map {
 
         newSpace = mru[to];
         this.selectedSpace = newSpace;
-
-        TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
 
         mru.forEach((space, i) => {
             let actor = space.actor;
