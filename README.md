@@ -24,7 +24,7 @@ _While PaperWM can be installed on a wide range of Gnome versions, new features 
 
 While technically an [extension](https://wiki.gnome.org/Projects/GnomeShell/Extensions) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
 
-We hang out on [zulip](https://paperwm.zulipchat.com).
+We often hang out on [zulip](https://paperwm.zulipchat.com).
 
 ## Installation
 
@@ -56,6 +56,9 @@ from the repository. The installer will create a link to the repo in
 > ```bash
 > /usr/bin/gnome-extensions enable paperwm@paperwm-redux.github.com
 > ```
+
+> if you have run into issues, delete any older `paperwm@...` symlinks from `~/.local/share/gnome-shell/extensions` and re-run the `install.sh` script.
+
 ### Uninstall PaperWM
 To uninstall simply run `./uninstall.sh`.
 
