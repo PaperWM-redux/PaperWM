@@ -191,7 +191,7 @@ var Space = class Space extends Array {
         }
 
         // now set monitor for this space
-        this.setMonitor(monitor, false);
+        this.setMonitor(monitor);
 
         if (doInit)
             this.init();
@@ -244,7 +244,6 @@ var Space = class Space extends Array {
 
         const settings = ExtensionUtils.getSettings();
         this.signals.connect(interfaceSettings, "changed::color-scheme", this.updateBackground.bind(this));
-
         this.signals.connect(settings, 'changed::default-background', this.updateBackground.bind(this));
         this.signals.connect(settings, 'changed::use-default-background', this.updateBackground.bind(this));
         this.signals.connect(backgroundSettings, 'changed::picture-uri', this.updateBackground.bind(this));
@@ -1410,7 +1409,7 @@ border-radius: ${borderWidth}px;
             Gestures.horizontalScroll.bind(this));
     }
 
-    setMonitor(monitor, animate) {
+    setMonitor(monitor, animate = false) {
         // Remake the background when we move monitors. The size/scale will be
         // incorrect when using fractional scaling.
         if (monitor !== this.monitor) {
@@ -1702,7 +1701,7 @@ var Spaces = class Spaces extends Map {
             let activeSpace = this.get(workspaceManager.get_active_workspace());
             let mru = this.mru();
             this.selectedSpace = mru[0];
-            this.monitors.set(activeSpace.monitor, activeSpace);
+            this.setMonitors(activeSpace.monitor, activeSpace);
             for (let [monitor, space] of this.monitors) {
                 space.show();
                 Utils.actor_raise(space.clip);
@@ -1729,9 +1728,9 @@ var Spaces = class Spaces extends Map {
 
         if (this.onlyOnPrimary) {
             this.forEach(space => {
-                space.setMonitor(primary, false);
+                space.setMonitor(primary);
             });
-            this.monitors.set(primary, mru[0]);
+            this.setMonitors(primary, mru[0]);
             finish();
             return;
         }
@@ -1741,14 +1740,14 @@ var Spaces = class Spaces extends Map {
             for (let [prevMonitor, prevSpace] of prevMonitors) {
                 let monitor = monitors[prevMonitor.index];
                 let space = this.get(prevSpace.workspace);
-                if (monitor &&
-                    space &&
+                if (monitor && space &&
                     prevMonitor.width === monitor.width &&
                     prevMonitor.height === monitor.height &&
                     prevMonitor.x === monitor.x &&
                     prevMonitor.y === monitor.y) {
-                    this.monitors.set(monitor, space);
-                    space.setMonitor(monitor, false);
+                    console.debug(`${space.name} restored to monitor ${monitor.index}`);
+                    this.setMonitors(monitor, space);
+                    space.setMonitor(monitor);
                     mru = mru.filter(s => s !== space);
                 }
             }
@@ -1767,8 +1766,8 @@ var Spaces = class Spaces extends Map {
                 if (space === undefined) {
                     continue;
                 }
-                this.monitors.set(monitor, space);
-                space.setMonitor(monitor, false);
+                this.setMonitors(monitor, space);
+                space.setMonitor(monitor);
                 mru = mru.slice(1);
             }
         }
@@ -1779,11 +1778,27 @@ var Spaces = class Spaces extends Map {
                 let monitor = monitors[space.monitor.index];
                 if (!monitor)
                     monitor = primary;
-                space.setMonitor(monitor, false);
+                space.setMonitor(monitor);
             }
         });
 
         finish();
+    }
+
+    /**
+     * Sets this.monitors map and updates prevMonitors map (for restore).
+     */
+    setMonitors(monitor, space) {
+        this.monitors.set(monitor, space);
+
+        /**
+         * Update prevMonitors if in multimonitor.  This persists
+         * monitor layouts when switching to single monitor mode,
+         * and restores to the last multimonitor layout.
+         */
+        if (this.monitors.size > 1) {
+            savePrevious();
+        }
     }
 
     destroy() {
@@ -1928,14 +1943,14 @@ var Spaces = class Spaces extends Map {
             // same monitor
             this._initWorkspaceSequence();
         } else {
-            this.selectedSpace.setMonitor(this.selectedSpace.monitor, false);
+            this.selectedSpace.setMonitor(this.selectedSpace.monitor);
         }
 
         this.stack = this.stack.filter(s => s !== toSpace);
         this.stack = [toSpace, ...this.stack];
 
         let monitor = toSpace.monitor;
-        this.monitors.set(monitor, toSpace);
+        this.setMonitors(monitor, toSpace);
 
         this.animateToSpace(toSpace, fromSpace, () => this.setSpaceTopbarElementsVisible(false));
 
@@ -1995,7 +2010,7 @@ var Spaces = class Spaces extends Map {
         const padding_percentage = 4;
         const to = monitorSpaces.indexOf(toSpace);
         monitorSpaces.forEach((space, i) => {
-            space.setMonitor(currentMonitor, false);
+            space.setMonitor(currentMonitor);
             space.startAnimate();
 
             Easer.removeEase(space.border);
@@ -2394,7 +2409,7 @@ var Spaces = class Spaces extends Map {
         let monitorSpaces = this._getOrderedSpaces(this.selectedSpace.monitor);
         let currentMonitor = this.selectedSpace.monitor;
         monitorSpaces.forEach((space, i) => {
-            space.setMonitor(currentMonitor, false);
+            space.setMonitor(currentMonitor);
         });
     }
 
@@ -2809,8 +2824,7 @@ function disable () {
     signals.destroy();
     signals = null;
 
-    prevMonitors = new Map(spaces.monitors);
-    prevSpaces = new Map(spaces);
+    savePrevious();
     prevSpaces.forEach(space => {
         let windows = space.getWindows();
         let selected = windows.indexOf(space.selectedWindow);
@@ -2831,6 +2845,19 @@ function disable () {
     backgroundGroup = null;
     backgroundSettings = null;
     interfaceSettings = null;
+}
+
+/**
+ * Saves prevMonitors and prevSpaces for controlled enables
+ * of PaperWM.
+ */
+function savePrevious() {
+    if (spaces?.monitors) {
+        prevMonitors = new Map(spaces.monitors);
+    }
+    if (spaces) {
+        prevSpaces = new Map(spaces);
+    }
 }
 
 /**
