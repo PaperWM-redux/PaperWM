@@ -1624,19 +1624,25 @@ var Spaces = class Spaces extends Map {
     }
 
     init() {
+        // Monitors aren't set up properly on `enable`, so we need it enable here.
+        this.monitorsChanged();
+        this.signals.connect(Main.layoutManager, 'monitors-changed', () => {
+            displayConfig.upgradeGnomeMonitors(() => this.monitorsChanged());
+        });
+
         this.signals.connect(display, 'window-created',
             (display, metaWindow, user_data) => this.window_created(metaWindow));
 
         this.signals.connect(display, 'grab-op-begin', (display, mw, type) => grabBegin(mw, type));
         this.signals.connect(display, 'grab-op-end', (display, mw, type) => grabEnd(mw, type));
 
-        this.signals.connect(Main.layoutManager, 'monitors-changed', this.monitorsChanged.bind(this));
 
         this.signals.connect(global.window_manager, 'switch-workspace',
             this.switchWorkspace.bind(this));
 
-        this.signals.connect(this.overrideSettings, 'changed::workspaces-only-on-primary',
-            this.monitorsChanged.bind(this));
+        this.signals.connect(this.overrideSettings, 'changed::workspaces-only-on-primary', () => {
+            displayConfig.upgradeGnomeMonitors(() => this.monitorsChanged());
+        });
 
         // Clone and hook up existing windows
         display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
@@ -1647,9 +1653,6 @@ var Spaces = class Spaces extends Map {
                 this.signals.connect(w, 'size-changed', resizeHandler);
             });
         this._initDone = true;
-
-        // Monitors aren't set up properly on `enable`, so we need it here too
-        this.monitorsChanged();
 
         // Create extra workspaces if required
         Main.wm._workspaceTracker._checkWorkspaces();
@@ -1664,11 +1667,11 @@ var Spaces = class Spaces extends Map {
        The monitors-changed signal can trigger _many_ times when
        connection/disconnecting monitors.
 
-       Monitors also doesn't seem to have a stable identity, which means we're
-       left with heuristics.
+       Monitors are now upgraded via a dbus proxy connector which upgrades
+       Main.layoutManager.monitors with a "connector" property (e.g "eDP-1")
+       which is more stable for restoring monitor layouts.
      */
     monitorsChanged() {
-        this._monitorsChanging = true;
         this.onlyOnPrimary = this.overrideSettings.get_boolean('workspaces-only-on-primary');
 
         // backup previous multimonitors save
@@ -1686,6 +1689,7 @@ var Spaces = class Spaces extends Map {
         }
         this.clickOverlays = [];
         let mru = this.mru();
+
         let primary = Main.layoutManager.primaryMonitor;
         let monitors = Main.layoutManager.monitors;
 
@@ -1712,23 +1716,16 @@ var Spaces = class Spaces extends Map {
             activeSpace.monitor.clickOverlay.deactivate();
             StackOverlay.multimonitorDragDropSupport();
 
-            this.monitorsChangingTimeout = Mainloop.timeout_add(
-                20, () => {
-                    this._monitorsChanging = false;
-                    this.monitorsChangingTimeout = null;
-                    return false; // on return false destroys timeout
-                });
-
             // update workspace indicator and correct selectionActive
             Utils.later_add(Meta.LaterType.IDLE, () => {
-                this.forEach(space => {
-                    space.setSelectionInactive();
-                });
+                setAllWorkspacesInactive();
 
                 // update selectionActive for current pointer monitor
                 let monitor = Grab.monitorAtCurrentPoint();
                 this.monitors.get(monitor).setSelectionActive();
                 TopBar.refreshWorkspaceIndicator();
+
+                this._monitorsChanging = false;
             });
         };
 
@@ -1744,14 +1741,10 @@ var Spaces = class Spaces extends Map {
         // Persist as many monitors as possible
         if (prevMonitors?.size > 0) {
             for (let [prevMonitor, prevSpace] of prevMonitors) {
-                let monitor = monitors[prevMonitor.index];
-                let space = this.get(prevSpace.workspace);
-                if (monitor && space &&
-                    prevMonitor.width === monitor.width &&
-                    prevMonitor.height === monitor.height &&
-                    prevMonitor.x === monitor.x &&
-                    prevMonitor.y === monitor.y) {
-                    console.debug(`${space.name} restored to monitor ${monitor.index}`);
+                let monitor = monitors.find(m => m.connector === prevMonitor.connector);
+                let space = this.spaceOfIndex(prevSpace.index);
+                if (monitor && space) {
+                    console.log(`${space.name} restored to monitor ${monitor.connector}`);
                     this.setMonitors(monitor, space);
                     space.setMonitor(monitor);
                     mru = mru.filter(s => s !== space);
@@ -1828,8 +1821,6 @@ var Spaces = class Spaces extends Map {
 
         this.signals.destroy();
         this.signals = null;
-        Utils.timeout_remove(this.monitorsChangingTimeout);
-        this.monitorsChangingTimeout = null;
 
         // remove spaces
         for (let [workspace, space] of this) {
@@ -2437,6 +2428,14 @@ var Spaces = class Spaces extends Map {
     }
 
     /**
+     * Returns the space by it's workspace index value.
+     */
+    spaceOfIndex(workspaceIndex) {
+        let workspace = [...this.keys()].find(w => workspaceIndex === w.index());
+        return this.spaceOf(workspace);
+    }
+
+    /**
      * Returns the currently active space.
      */
     get activeSpace() {
@@ -2718,11 +2717,13 @@ function resizeHandler(metaWindow) {
 
 let signals, backgroundGroup, grabSignals;
 let gsettings, backgroundSettings, interfaceSettings;
-let prevSpaces, prevMonitors;
+let displayConfig;
+let prevMonitors, prevSpaces;
 let startupTimeoutId, timerId;
-var inGrab;
+var inGrab; // exported
 function enable(errorNotification) {
     inGrab = false;
+    displayConfig = new Utils.DisplayConfig();
     gsettings = ExtensionUtils.getSettings();
     backgroundSettings = new Gio.Settings({
         schema_id: 'org.gnome.desktop.background',
@@ -2799,12 +2800,17 @@ function enable(errorNotification) {
         // Defer workspace initialization until existing windows are accessible.
         // Otherwise we're unable to restore the tiling-order. (when restarting
         // gnome-shell)
-        signals.connectOneShot(Main.layoutManager, 'startup-complete', initWorkspaces);
+        signals.connectOneShot(Main.layoutManager, 'startup-complete',
+            () => displayConfig.upgradeGnomeMonitors(initWorkspaces));
     } else {
-        // NOTE: this needs to happen after kludges.enable() have run, so we do
+        /**
+         * Upgrade gnome monitor info objects by add "connector" information, and
+         * when done (async) callback to initworkspaces.
+         */
+        // NOTE: this should happen after kludges.enable() have run, so we do
         // it in a timeout
         startupTimeoutId = Mainloop.timeout_add(0, () => {
-            initWorkspaces();
+            displayConfig.upgradeGnomeMonitors(initWorkspaces);
             startupTimeoutId = null;
             return false; // on return false destroys timeout
         });
@@ -2837,6 +2843,8 @@ function disable () {
         }
     });
 
+    displayConfig.downgradeGnomeMonitors();
+    displayConfig = null;
     spaces.destroy();
     inGrab = null;
     gsettings = null;
@@ -2856,7 +2864,21 @@ function savePrevious() {
      * and restores to the last multimonitor layout.
      */
     if (spaces?.monitors?.size > 1) {
-        prevMonitors = new Map(spaces.monitors);
+        /**
+         * for monitors, since these are upgraded with "connector" field,
+         * which we delete on disable. Beefore we delete this field, we want
+         * a copy on connector (and maybe index) to restore space to monitor.
+         */
+        prevMonitors = new Map();
+        for (let [monitor, space] of spaces.monitors) {
+            prevMonitors.set({
+                index: monitor.index,
+                connector: monitor.connector,
+            }, {
+                index: space.workspace.index(),
+                name: space.name,
+            });
+        }
     }
 
     if (spaces) {
