@@ -169,7 +169,7 @@ var Space = class Space extends Array {
                 monitor = prevMonitor;
         }
 
-        this.setSettings(Workspace.getWorkspaceSettings(this.workspace.index()));
+        this.setSettings(Workspace.getWorkspaceSettings(this.index));
         actor.set_pivot_point(0.5, 0);
 
         this.selectedWindow = null;
@@ -248,6 +248,13 @@ var Space = class Space extends Array {
         this.signals.connect(settings, 'changed::use-default-background', this.updateBackground.bind(this));
         this.signals.connect(backgroundSettings, 'changed::picture-uri', this.updateBackground.bind(this));
         this.signals.connect(backgroundSettings, "changed::picture-uri-dark", this.updateBackground.bind(this));
+    }
+
+    /**
+     * Returns the space index (which is equivalent to the workspace index).
+     */
+    get index() {
+        return this.workspace.index();
     }
 
     show() {
@@ -1114,7 +1121,7 @@ var Space = class Space extends Array {
     /**
      * Returns true if this space has the topbar.
      */
-    hasTopBar() {
+    get hasTopBar() {
         return this.monitor && this.monitor === TopBar.panelMonitor;
     }
 
@@ -1122,7 +1129,7 @@ var Space = class Space extends Array {
         let color = this.settings.get_string('color');
         if (color === '') {
             let colors = Settings.prefs.workspace_colors;
-            let index = this.workspace.index() % Settings.prefs.workspace_colors.length;
+            let index = this.index % Settings.prefs.workspace_colors.length;
             color = colors[index];
         }
         this.color = color;
@@ -1162,13 +1169,13 @@ border-radius: ${borderWidth}px;
         }
         let name = this.settings.get_string('name');
         if (name === '')
-            name = Meta.prefs_get_workspace_name(this.workspace.index());
-        Meta.prefs_change_workspace_name(this.workspace.index(), name);
+            name = Meta.prefs_get_workspace_name(this.index);
+        Meta.prefs_change_workspace_name(this.index, name);
         this.workspaceLabel.text = name;
         this.name = name;
 
         if (this.workspace === workspaceManager.get_active_workspace()) {
-            TopBar.updateWorkspaceIndicator(this.workspace.index());
+            TopBar.updateWorkspaceIndicator(this.index);
         }
     }
 
@@ -1221,7 +1228,7 @@ border-radius: ${borderWidth}px;
         }
 
         // show space duplicate elements if not primary monitor
-        if (!this.hasTopBar()) {
+        if (!this.hasTopBar) {
             Utils.actor_raise(this.workspaceIndicator);
             this.workspaceLabel.show();
         }
@@ -1256,7 +1263,7 @@ border-radius: ${borderWidth}px;
         // if windowPositionBar shown, we want the topbar style to be transparent if visible
         if (Settings.prefs.show_window_position_bar) {
             if (changeTopBarStyle) {
-                if (visible && this.hasTopBar()) {
+                if (visible && this.hasTopBar) {
                     TopBar.setTransparentStyle();
                 }
                 else {
@@ -1265,12 +1272,12 @@ border-radius: ${borderWidth}px;
             }
 
             // if on different monitor then override to show elements
-            if (!this.hasTopBar()) {
+            if (!this.hasTopBar) {
                 visible = true;
             }
 
             // don't show elements on spaces with actual TopBar (unless inPreview)
-            if (this.hasTopBar() && !inPreview) {
+            if (this.hasTopBar && !inPreview) {
                 visible = false;
             }
         }
@@ -1674,9 +1681,6 @@ var Spaces = class Spaces extends Map {
     monitorsChanged() {
         this.onlyOnPrimary = this.overrideSettings.get_boolean('workspaces-only-on-primary');
 
-        // backup previous multimonitors save
-        savePrevious();
-
         this.monitors = new Map();
         this.activeSpace.getWindows().forEach(w => {
             animateWindow(w);
@@ -1691,7 +1695,10 @@ var Spaces = class Spaces extends Map {
         let mru = this.mru();
 
         let primary = Main.layoutManager.primaryMonitor;
-        let monitors = Main.layoutManager.monitors;
+        // get monitors but ensure primary monitor is first
+        let monitors = Main.layoutManager.monitors
+            .filter(m => m !== primary);
+        monitors.unshift(primary);
 
         for (let monitor of monitors) {
             let overlay = new ClickOverlay(monitor, this.onlyOnPrimary);
@@ -1701,6 +1708,9 @@ var Spaces = class Spaces extends Map {
         }
 
         let finish = () => {
+            // save layout changed to
+            savePrevious();
+
             // update monitor for TopBar
             TopBar.updateMonitor();
 
@@ -1722,10 +1732,8 @@ var Spaces = class Spaces extends Map {
 
                 // update selectionActive for current pointer monitor
                 let monitor = Grab.monitorAtCurrentPoint();
-                this.monitors.get(monitor).setSelectionActive();
+                this.monitors.get(activeSpace.monitor).setSelectionActive();
                 TopBar.refreshWorkspaceIndicator();
-
-                this._monitorsChanging = false;
             });
         };
 
@@ -1739,10 +1747,18 @@ var Spaces = class Spaces extends Map {
         }
 
         // Persist as many monitors as possible
+        let indexTracker = [];
         if (prevMonitors?.size > 0) {
-            for (let [prevMonitor, prevSpace] of prevMonitors) {
-                let monitor = monitors.find(m => m.connector === prevMonitor.connector);
-                let space = this.spaceOfIndex(prevSpace.index);
+            for (let [prevConn, prevSpaceIndex] of prevMonitors) {
+                // if space has already been assigned, skip
+                if (indexTracker.includes(prevSpaceIndex)) {
+                    continue;
+                }
+                indexTracker.push(prevSpaceIndex);
+
+                let monitor = monitors.find(m => m.connector === prevConn);
+                let space = this.spaceOfIndex(prevSpaceIndex);
+
                 if (monitor && space) {
                     console.log(`${space.name} restored to monitor ${monitor.connector}`);
                     this.setMonitors(monitor, space);
@@ -1775,8 +1791,10 @@ var Spaces = class Spaces extends Map {
         mru.forEach(space => {
             if (!monitors.includes(space.monitor)) {
                 let monitor = monitors[space.monitor.index];
-                if (!monitor)
+                if (!monitor) {
                     monitor = primary;
+                }
+
                 space.setMonitor(monitor);
             }
         });
@@ -2098,7 +2116,7 @@ var Spaces = class Spaces extends Map {
 
         // if active (source space) is panelMonitor update indicator
         if (currentSpace.monitor === TopBar.panelMonitor) {
-            TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
+            TopBar.updateWorkspaceIndicator(newSpace.index);
         }
 
         const scale = 0.825;
@@ -2259,7 +2277,7 @@ var Spaces = class Spaces extends Map {
 
         // if active (source space) is panelMonitor update indicator
         if (space.monitor === TopBar.panelMonitor) {
-            TopBar.updateWorkspaceIndicator(newSpace.workspace.index());
+            TopBar.updateWorkspaceIndicator(newSpace.index);
         }
 
         mru.forEach((space, i) => {
@@ -2299,7 +2317,7 @@ var Spaces = class Spaces extends Map {
         let currentPreviewMode = inPreview;
         inPreview = PreviewMode.NONE;
 
-        TopBar.updateWorkspaceIndicator(to.workspace.index());
+        TopBar.updateWorkspaceIndicator(to.index);
         this.selectedSpace = to;
 
         to.show();
@@ -2858,26 +2876,14 @@ function disable () {
  * of PaperWM.
  */
 function savePrevious() {
-    /**
-     * Update prevMonitors if in multimonitor.  This persists
-     * monitor layouts when switching to single monitor mode,
-     * and restores to the last multimonitor layout.
-     */
-    if (spaces?.monitors?.size > 1) {
+    if (spaces?.monitors) {
         /**
          * for monitors, since these are upgraded with "connector" field,
          * which we delete on disable. Beefore we delete this field, we want
          * a copy on connector (and maybe index) to restore space to monitor.
          */
-        prevMonitors = new Map();
         for (let [monitor, space] of spaces.monitors) {
-            prevMonitors.set({
-                index: monitor.index,
-                connector: monitor.connector,
-            }, {
-                index: space.workspace.index(),
-                name: space.name,
-            });
+            prevMonitors.set(monitor.connector, space.index);
         }
     }
 
@@ -3772,7 +3778,7 @@ function setFocusMode(mode, space) {
     space = space ?? spaces.activeSpace;
     space.focusMode = mode;
     space.focusModeIcon.setMode(mode);
-    if (space.hasTopBar()) {
+    if (space.hasTopBar) {
         TopBar.focusButton.setFocusMode(mode);
     }
 
@@ -4080,7 +4086,7 @@ function cycleWorkspaceSettings(dir = 1) {
     let n = workspaceManager.get_n_workspaces();
     let N = Workspace.getWorkspaceList().get_strv('list').length;
     let space = spaces.selectedSpace;
-    let wsI = space.workspace.index();
+    let wsI = space.index;
 
     // 2 6 7 8   <-- indices
     // x a b c   <-- settings
