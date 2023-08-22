@@ -200,16 +200,20 @@ var Space = class Space extends Array {
     init() {
         if (this._populated || Main.layoutManager._startingUp)
             return;
-        let workspace = this.workspace;
 
-        let prevSpace = saveState.prevSpaces.get(workspace);
-        this.addAll(prevSpace);
-        saveState.prevSpaces.delete(workspace);
+        let workspace = this.workspace;
+        let prevSpace = saveState.getPrevSpaceByUUID(this.uuid);
+        console.info(`restore by uuid: ${this.uuid}, prevSpace name: ${prevSpace?.name}`);
+        if (prevSpace) {
+            this.addAll(prevSpace);
+            saveState.prevSpaces.delete(workspace);
+        }
+
         this._populated = true;
 
         // init window position bar and space topbar elements
         this.windowPositionBarBackdrop.height = TopBar.panelBox.height;
-        this.setSpaceTopbarElementsVisible(false);
+        this.setSpaceTopbarElementsVisible();
 
         // apply default focus mode
         setFocusMode(getDefaultFocusMode(), this);
@@ -249,6 +253,33 @@ var Space = class Space extends Array {
      */
     get index() {
         return this.workspace.index();
+    }
+
+    /**
+     * Activates this space. Safer alternative to space.workspace.activate.  Also allows
+     * setting animation on workspaceSwitch.
+     * @param {Boolean} animate
+     */
+    activate(animate = false) {
+        spaces._space_activate_animate = animate;
+        this.workspace.activate(global.get_current_time());
+        spaces._space_activate_animate = false; // switch to default
+    }
+
+    /**
+     * Activates this space. Safer alternative to space.workspace.activate_with_focus.  also allows
+     * setting animation on workspaceSwitch.
+     * @param {Boolean} animate
+     */
+    activateWithFocus(metaWindow, animate = false) {
+        spaces._space_activate_animate = animate;
+        if (metaWindow) {
+            this.workspace.activate_with_focus(metaWindow, global.get_current_time());
+        }
+        else {
+            this.workspace.activate(global.get_current_time());
+        }
+        spaces._space_activate_animate = false; // switch to default
     }
 
     show() {
@@ -631,8 +662,9 @@ var Space = class Space extends Array {
         }
 
         /*
-         * Fix for 3.35+ (still present is 44) which has a bug where move_frame sometimes triggers
-         * another move back to its original position. Make sure tiled windows are always positioned correctly.
+         * Fix (still needed is 44) for bug where move_frame sometimes triggers
+         * another move back to its original position. Make sure tiled windows are
+         * always positioned correctly.
          */
         this.signals.connect(metaWindow, 'position-changed', w => {
             if (inGrab)
@@ -644,7 +676,12 @@ var Space = class Space extends Array {
             x = Math.min(this.width - stack_margin, Math.max(stack_margin - f.width, x));
             x += this.monitor.x;
             if (f.x !== x || f.y !== y) {
-                w.move_frame(true, x, y);
+                try {
+                    w.move_frame(true, x, y);
+                }
+                catch (ex) {
+
+                }
             }
         });
 
@@ -1274,7 +1311,7 @@ border-radius: ${borderWidth}px;
      * sets these elements' visibility when not needed.
      * @param {boolean} visible
      */
-    setSpaceTopbarElementsVisible(visible = true, changeTopBarStyle = true) {
+    setSpaceTopbarElementsVisible(visible = false, changeTopBarStyle = true) {
         // if windowPositionBar shown, we want the topbar style to be transparent if visible
         if (Settings.prefs.show_window_position_bar) {
             if (changeTopBarStyle) {
@@ -1282,7 +1319,7 @@ border-radius: ${borderWidth}px;
                     TopBar.setTransparentStyle();
                 }
                 else {
-                    TopBar.setClearStyle();
+                    TopBar.setNoBackgroundStyle();
                 }
             }
 
@@ -1644,8 +1681,11 @@ var Spaces = class Spaces extends Map {
     }
 
     init() {
+        // Create extra workspaces if required
+        Main.wm._workspaceTracker._checkWorkspaces();
+
         // Monitors aren't set up properly on `enable`, so we need it enable here.
-        this.monitorsChanged(false);
+        this.monitorsChanged();
         this.signals.connect(Main.layoutManager, 'monitors-changed', () => {
             displayConfig.upgradeGnomeMonitors(() => this.monitorsChanged());
         });
@@ -1674,9 +1714,6 @@ var Spaces = class Spaces extends Map {
             });
         this._initDone = true;
 
-        // Create extra workspaces if required
-        Main.wm._workspaceTracker._checkWorkspaces();
-
         // Initialize spaces _after_ monitors are set up
         this.forEach(space => space.init());
         this.stack = this.mru();
@@ -1690,7 +1727,7 @@ var Spaces = class Spaces extends Map {
        Main.layoutManager.monitors with a "connector" property (e.g "eDP-1")
        which is more stable for restoring monitor layouts.
      */
-    monitorsChanged(saveStateOnComplete = true) {
+    monitorsChanged() {
         this.onlyOnPrimary = this.overrideSettings.get_boolean('workspaces-only-on-primary');
 
         this.monitors = new Map();
@@ -1719,23 +1756,37 @@ var Spaces = class Spaces extends Map {
         }
 
         let finish = () => {
-            // save layout changed to
-            saveState.update(saveStateOnComplete);
-            this.setSpaceTopbarElementsVisible();
+            /**
+             * Gnome may select a workspace that just had it monitor removed (gone).
+             * This this case find the next most recent space that's maintained it's
+             * monitor, and select that.
+             */
+            let recent = this.mru().filter(s => !monitorGoneSpaces.includes(s));
+            let activeSpace = recent?.[0] ?? this.monitors.get(primary);
+            activeSpace.activate();
 
-            let activeSpace = this.activeSpace;
             this.selectedSpace = activeSpace;
             this.setMonitors(activeSpace.monitor, activeSpace);
-            for (let [monitor, space] of this.monitors) {
+            this.monitors.forEach(space => {
                 space.show();
                 Utils.actor_raise(space.clip);
-            }
+            });
 
             this.spaceContainer.show();
             activeSpace.monitor.clickOverlay.deactivate();
-            StackOverlay.multimonitorDragDropSupport();
             TopBar.refreshWorkspaceIndicator();
+            this.setSpaceTopbarElementsVisible();
+            StackOverlay.multimonitorDragDropSupport();
         };
+
+        if (this.onlyOnPrimary) {
+            this.forEach(space => {
+                space.setMonitor(primary);
+            });
+            this.setMonitors(primary, mru[0]);
+            finish();
+            return;
+        }
 
         /**
          * Schedule to restore space targetX after this.  Needs to be
@@ -1751,15 +1802,20 @@ var Spaces = class Spaces extends Map {
                     }
                 }
             }
+
+            // save restore state after restored previous targetX's
+            saveState.update();
+
+            // run layout on spaces after monitor to ensure windows layout is correct
+            this.forEach(space => space.layout(false));
         });
 
-        if (this.onlyOnPrimary) {
-            this.forEach(space => {
-                space.setMonitor(primary);
-            });
-            this.setMonitors(primary, mru[0]);
-            finish();
-            return;
+        // add any new / need workspaces that were present from prev state
+        let prevNSpaces = saveState?.prevSpaces?.size ?? 0;
+        let addSpaces = Math.max(0, prevNSpaces - workspaceManager.n_workspaces);
+        console.info(`nPrevSpaces ${prevNSpaces}, current nSpaces ${workspaceManager.n_workspaces}, need to add ${addSpaces}`);
+        for (let i = 0; i < addSpaces; i++ ) {
+            workspaceManager.append_new_workspace(false, global.get_current_time());
         }
 
         // Persist as many monitors as possible
@@ -1787,12 +1843,6 @@ var Spaces = class Spaces extends Map {
         for (let monitor of monitors) {
             if (this.monitors.get(monitor) === undefined) {
                 let space = mru[0];
-                if (space === undefined && this._initDone) {
-                    let workspace = workspaceManager.append_new_workspace(
-                        false,
-                        global.get_current_time());
-                    space = this.spaceOf(workspace);
-                }
                 if (space === undefined) {
                     continue;
                 }
@@ -1802,15 +1852,16 @@ var Spaces = class Spaces extends Map {
             }
         }
 
-        // Reset any removed monitors
-        mru.forEach(space => {
+        /**
+         * Reset spaces where their monitors no longer exist.
+         * These spaces should be be restored.  We'll track
+         * which spaces have their monitor gone.
+         */
+        let monitorGoneSpaces = [];
+        this.forEach(space => {
             if (!monitors.includes(space.monitor)) {
-                let monitor = monitors[space.monitor.index];
-                if (!monitor) {
-                    monitor = primary;
-                }
-
-                space.setMonitor(monitor);
+                monitorGoneSpaces.push(space);
+                space.setMonitor(primary);
             }
         });
 
@@ -1941,16 +1992,16 @@ var Spaces = class Spaces extends Map {
                 metaWindow.foreach_transient(t => {
                     space.addFloating(t);
                 });
-                space.workspace.activate_with_focus(focus, global.get_current_time());
+                space.activateWithFocus(focus);
             } else {
                 metaWindow.move_to_monitor(newMonitor.index);
             }
         } else {
-            space.workspace.activate(global.get_current_time());
+            space.activate();
         }
     }
 
-    switchWorkspace(wm, fromIndex, toIndex) {
+    switchWorkspace(wm, fromIndex, toIndex, animate = false) {
         let to = workspaceManager.get_workspace_by_index(toIndex);
         let from = workspaceManager.get_workspace_by_index(fromIndex);
         let toSpace = this.spaceOf(to);
@@ -1983,7 +2034,8 @@ var Spaces = class Spaces extends Map {
         let monitor = toSpace.monitor;
         this.setMonitors(monitor, toSpace, true);
 
-        this.animateToSpace(toSpace, fromSpace, () => this.setSpaceTopbarElementsVisible(false));
+        this.animateToSpace(toSpace, fromSpace, animate || this._space_activate_animate,
+            () => this.setSpaceTopbarElementsVisible());
 
         toSpace.monitor.clickOverlay.deactivate();
 
@@ -2000,7 +2052,7 @@ var Spaces = class Spaces extends Map {
      * See Space.setSpaceTopbarElementsVisible function for what this does.
      * @param {boolean} visible
      */
-    setSpaceTopbarElementsVisible(visible = true, changeTopBarStyle = true) {
+    setSpaceTopbarElementsVisible(visible = false, changeTopBarStyle = true) {
         this.forEach(s => {
             s.setSpaceTopbarElementsVisible(visible, changeTopBarStyle);
         });
@@ -2069,7 +2121,7 @@ var Spaces = class Spaces extends Map {
             return;
         }
         inPreview = PreviewMode.SEQUENTIAL;
-        this.setSpaceTopbarElementsVisible();
+        this.setSpaceTopbarElementsVisible(true);
 
         if (Main.panel.statusArea.appMenu) {
             Main.panel.statusArea.appMenu.container.hide();
@@ -2168,7 +2220,7 @@ var Spaces = class Spaces extends Map {
 
         // Always show the topbar when using the workspace stack
         TopBar.fixTopBar();
-        this.setSpaceTopbarElementsVisible();
+        this.setSpaceTopbarElementsVisible(true);
         const scale = 0.9;
         let space = this.activeSpace;
         let mru = [...this.stack];
@@ -2328,7 +2380,7 @@ var Spaces = class Spaces extends Map {
         });
     }
 
-    animateToSpace(to, from, callback) {
+    animateToSpace(to, from, animate = true, callback) {
         let currentPreviewMode = inPreview;
         inPreview = PreviewMode.NONE;
 
@@ -2349,6 +2401,7 @@ var Spaces = class Spaces extends Map {
             visible.set(space, true);
         }
 
+        let time = animate ? Settings.prefs.animation_time : 0;
         let onComplete = () => {
             // Hide any spaces that aren't visible This
             // avoids a nasty preformance degregration in some
@@ -2359,14 +2412,8 @@ var Spaces = class Spaces extends Map {
                 }
             }
 
-            Easer.addEase(to.border, {
-                opacity: 0,
-                time: Settings.prefs.animation_time,
-                onComplete: () => {
-                    to.border.hide();
-                    to.border.opacity = 255;
-                },
-            });
+            to.border.hide();
+            to.border.opacity = 255;
             Utils.actor_raise(to.clip);
 
             // Fixes a weird bug where mouse input stops
@@ -2383,7 +2430,7 @@ var Spaces = class Spaces extends Map {
         };
 
         if (currentPreviewMode === PreviewMode.SEQUENTIAL) {
-            this._animateToSpaceOrdered(to, true);
+            this._animateToSpaceOrdered(to, animate);
             let t = to.actor.get_transition('y');
             if (t) {
                 t.connect('stopped', (timeline, finished) => {
@@ -2406,7 +2453,7 @@ var Spaces = class Spaces extends Map {
                 y: 0,
                 scale_x: 1,
                 scale_y: 1,
-                time: Settings.prefs.animation_time,
+                time,
                 onComplete,
             });
 
@@ -2420,7 +2467,7 @@ var Spaces = class Spaces extends Map {
                 Easer.addEase(space.actor,
                     {
                         x: 0, y: space.height + 20,
-                        time: Settings.prefs.animation_time,
+                        time,
                     });
             }
             above = above.get_next_sibling();
@@ -2814,7 +2861,7 @@ function enable(errorNotification) {
         // on idle update space topbar elements and name
         Utils.later_add(Meta.LaterType.IDLE, () => {
             spaces.forEach(s => {
-                s.setSpaceTopbarElementsVisible(false);
+                s.setSpaceTopbarElementsVisible();
                 s.updateName();
             });
         });
@@ -2883,6 +2930,17 @@ let SaveState = class SaveState {
 
     hasPrevTargetX() {
         return this.prevTargetX?.size > 0;
+    }
+
+    getPrevSpaceByUUID(uuid) {
+        let space;
+        this.prevSpaces.forEach(s => {
+            if (uuid === s.uuid) {
+                space = s;
+            }
+        });
+
+        return space;
     }
 
     /**
@@ -3604,7 +3662,7 @@ function resizeHInc(metaWindow) {
 
     let maxHeight = workArea.height - Settings.prefs.horizontal_margin * 2 - Settings.prefs.window_gap;
     let step = Math.floor(maxHeight * 0.1);
-    let currentHeight = Math.floor(frame.height / step) * step;
+    let currentHeight = Math.round(frame.height / step) * step;
     let targetHeight = Math.min(currentHeight + step, maxHeight);
     let targetY = frame.y;
 
@@ -3624,7 +3682,7 @@ function resizeHDec(metaWindow) {
 
     let maxHeight = workArea.height - Settings.prefs.horizontal_margin * 2 - Settings.prefs.window_gap;
     let step = Math.floor(maxHeight * 0.1);
-    let currentHeight = Math.floor(frame.height / step) * step;
+    let currentHeight = Math.round(frame.height / step) * step;
     let minHeight = step;
     let targetHeight = Math.max(currentHeight - step, minHeight);
     let targetY = frame.y;
@@ -3645,7 +3703,7 @@ function resizeWInc(metaWindow) {
 
     let maxWidth = workArea.width - Settings.prefs.horizontal_margin * 2 - Settings.prefs.window_gap;
     let step = Math.floor(maxWidth * 0.1);
-    let currentWidth = Math.floor(frame.width / step) * step;
+    let currentWidth = Math.round(frame.width / step) * step;
     let targetWidth = Math.min(currentWidth + step, maxWidth);
     let targetX = frame.x;
 
@@ -3665,7 +3723,7 @@ function resizeWDec(metaWindow) {
 
     let maxWidth = workArea.width - Settings.prefs.horizontal_margin * 2 - Settings.prefs.window_gap;
     let step = Math.floor(maxWidth * 0.1);
-    let currentWidth = Math.floor(frame.width / step) * step;
+    let currentWidth = Math.round(frame.width / step) * step;
     let minWidth = step;
     let targetWidth = Math.max(currentWidth - step, minWidth);
     let targetX = frame.x;
