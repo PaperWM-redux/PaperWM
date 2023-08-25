@@ -280,13 +280,6 @@ function setupRuntimeDisables() {
     saveRuntimeDisable(mutterSettings, 'attach-modal-dialogs', false);
     saveRuntimeDisable(mutterSettings, 'workspaces-only-on-primary', false);
     saveRuntimeDisable(mutterSettings, 'edge-tiling', false);
-
-    // set dynamic-workspaces as a controlled setting
-    /*
-    if (gsettings.get_boolean('allow-dynamic-workspaces') === false) {
-        saveRuntimeDisable(mutterSettings, 'dynamic-workspaces', false);
-    }
-    */
 }
 
 /**
@@ -366,11 +359,10 @@ function setupActions() {
 }
 
 let savedProps;
-let gsettings, wmSettings, mutterSettings;
+let gsettings, mutterSettings;
 function enable() {
     savedProps = new Map();
     gsettings = ExtensionUtils.getSettings();
-    wmSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.wm.preferences' });
     mutterSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
     setupSwipeTrackers();
     setupOverrides();
@@ -392,7 +384,6 @@ function disable() {
     savedProps = null;
     swipeTrackers = null;
     gsettings = null;
-    wmSettings = null;
     mutterSettings = null;
     actions = null;
 }
