@@ -497,23 +497,29 @@ function enableAction(action) {
     }
 }
 
-function resolveConflicts() {
-    Settings.overrideConflicts();
-}
-
 function enable() {
-    setupActions();
-    let schemas = [...Settings.getConflictSettings(), ExtensionUtils.getSettings(KEYBINDINGS_KEY)];
-    schemas.forEach(schema => {
-        signals.connect(schema, 'changed', resolveConflicts);
-    });
+    // restore previous keybinds (in case failed to restore last time, e.g. gnome crash etc)
+    Settings.updateOverrides();
 
+    setupActions();
     signals.connect(display,
         'accelerator-activated',
         Utils.dynamic_function_ref(handleAccelerator.name, this)
     );
     actions.forEach(enableAction);
-    resolveConflicts();
+    Settings.overrideConflicts();
+
+    let schemas = [...Settings.getConflictSettings(), ExtensionUtils.getSettings(KEYBINDINGS_KEY)];
+    schemas.forEach(schema => {
+        signals.connect(schema, 'changed', (settings, key) => {
+            const numConflicts = Settings.conflictKeyChanged(settings, key);
+            if (numConflicts > 0) {
+                Main.notify(
+                    `PaperWM: overriding \`${key}\` keybind`,
+                    `This Gnome Keybind will be restored when PaperWM is disabled.`);
+            }
+        });
+    });
 }
 
 function disable() {
