@@ -1,3 +1,22 @@
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+import GLib from 'gi://GLib';
+
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Workspace from 'resource:///org/gnome/shell/ui/workspace.js';
+import * as WorkspaceThumbnail from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
+import * as WorkspaceAnimation from 'resource:///org/gnome/shell/ui/workspaceAnimation.js';
+import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
+import * as WindowManager from 'resource:///org/gnome/shell/ui/windowManager.js';
+import * as WindowPreview from 'resource:///org/gnome/shell/ui/windowPreview.js';
+import * as Params from 'resource:///org/gnome/shell/misc/params.js';
+
+import { Utils, Tiling, Scratch, Settings } from './imports.js';
+
 /**
   Some of Gnome Shell's default behavior is really sub-optimal when using
   paperWM. Other features are simply not possible to implement without monkey
@@ -5,24 +24,48 @@
   around these problems and facilitates new features.
  */
 
-const ExtensionUtils = imports.misc.extensionUtils;
-const Extension = ExtensionUtils.getCurrentExtension();
-const Utils = Extension.imports.utils;
-const Tiling = Extension.imports.tiling;
-const Scratch = Extension.imports.scratch;
+let savedProps, signals;
+let gsettings, mutterSettings;
+let pillSwipeTimer;
+export function enable(extension) {
+    savedProps = new Map();
+    gsettings = extension.getSettings();
+    mutterSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
+    signals = new Utils.Signals();
+    setupSwipeTrackers();
+    setupOverrides();
+    enableOverrides();
+    setupRuntimeDisables();
+    setupActions();
+}
 
-const { Meta, Gio, Shell } = imports.gi;
-const Main = imports.ui.main;
-const Workspace = imports.ui.workspace;
-const WorkspaceThumbnail = imports.ui.workspaceThumbnail;
-const WorkspaceAnimation = imports.ui.workspaceAnimation;
-const WindowPreview = imports.ui.windowPreview;
-const WindowManager = imports.ui.windowManager;
-const Params = imports.misc.params;
+export function disable() {
+    disableOverrides();
+    restoreRuntimeDisables();
+    actions.forEach(a => global.stage.add_action(a));
+    actions = null;
 
-function registerOverrideProp(obj, name, override) {
+    signals.destroy();
+    signals = null;
+
+    savedProps = null;
+    swipeTrackers = null;
+    gsettings = null;
+    mutterSettings = null;
+    Utils.timeout_remove(pillSwipeTimer);
+    pillSwipeTimer = null;
+    actions = null;
+}
+
+export function registerOverrideProp(obj, name, override, warn = true) {
     if (!obj)
         return;
+
+    // check if prop exists
+    const exists = obj?.[name];
+    if (!exists && warn) {
+        console.log(`#PaperWM: attempt to override prop for '${name}' failed: is null or undefined`);
+    }
 
     let saved = getSavedProp(obj, name) ?? obj[name];
     let props = savedProps.get(obj);
@@ -36,25 +79,25 @@ function registerOverrideProp(obj, name, override) {
     };
 }
 
-function registerOverridePrototype(obj, name, override) {
+export function registerOverridePrototype(obj, name, override) {
     if (!obj)
         return;
 
-    // check if method for prototype exists - throwing warning if not
+    // check if method for prototype exists
     const exists = obj?.prototype?.[name];
     if (!exists) {
-        console.warn(`#PaperWM: attempt to override prototype for '${name}' failed: is null or undefined`);
+        console.log(`#PaperWM: attempt to override prototype for '${name}' failed: is null or undefined`);
     }
 
     registerOverrideProp(obj.prototype, name, override);
 }
 
-function makeFallback(obj, method, ...args) {
+export function makeFallback(obj, method, ...args) {
     let fallback = getSavedPrototype(obj, method);
     return fallback.bind(...args);
 }
 
-function overrideWithFallback(obj, method, body) {
+export function overrideWithFallback(obj, method, body) {
     registerOverridePrototype(
         obj, method, function(...args) {
             let fallback = makeFallback(obj, method, this, ...args);
@@ -63,7 +106,7 @@ function overrideWithFallback(obj, method, body) {
     );
 }
 
-function getSavedProp(obj, name) {
+export function getSavedProp(obj, name) {
     let props = savedProps.get(obj);
     if (!props)
         return undefined;
@@ -73,15 +116,15 @@ function getSavedProp(obj, name) {
     return prop.saved;
 }
 
-function getSavedPrototype(obj, name) {
+export function getSavedPrototype(obj, name) {
     return getSavedProp(obj.prototype, name);
 }
 
-function disableOverride(obj, name) {
+export function disableOverride(obj, name) {
     obj[name] = getSavedProp(obj, name);
 }
 
-function enableOverride(obj, name) {
+export function enableOverride(obj, name) {
     let props = savedProps.get(obj);
     let override = props[name].override;
     if (override !== undefined) {
@@ -93,12 +136,26 @@ function enableOverride(obj, name) {
  * Sets up PaperWM overrides (needed for operations).  These overrides are registered and restored
  * on PaperWM disable.
  */
-function setupOverrides() {
+export function setupOverrides() {
     registerOverridePrototype(WorkspaceAnimation.WorkspaceAnimationController, 'animateSwitch',
         // WorkspaceAnimation.WorkspaceAnimationController.animateSwitch
         // Disable the workspace switching animation in Gnome 40+
         function (_from, _to, _direction, onComplete) {
-            onComplete();
+            // if using PaperWM workspace switch animation, just do complete here
+            if (Tiling.inPreview || Tiling.spaces.space_activate_animate) {
+                onComplete();
+            }
+            else {
+                const saved = getSavedPrototype(WorkspaceAnimation.WorkspaceAnimationController, 'animateSwitch');
+                saved.call(this, _from, _to, _direction, onComplete);
+            }
+
+            // ensure swipeTrackers are disabled after this
+            pillSwipeTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                swipeTrackers.forEach(t => t.enabled = false);
+                pillSwipeTimer = null;
+                return false; // on return false destroys timeout
+            });
         });
 
     registerOverridePrototype(WorkspaceAnimation.WorkspaceAnimationController, '_prepareWorkspaceSwitch',
@@ -111,20 +168,21 @@ function setupOverrides() {
 
     registerOverridePrototype(WorkspaceAnimation.WorkspaceAnimationController, '_finishWorkspaceSwitch',
         function (switchData) {
-            const saved = getSavedPrototype(WorkspaceAnimation.WorkspaceAnimationController, '_finishWorkspaceSwitch');
+            const saved = getSavedPrototype(WorkspaceAnimation.WorkspaceAnimationController,
+                '_finishWorkspaceSwitch');
             // ensure selection is shown after workspaces swtching
             Tiling.spaces.forEach(s => s.showSelection());
             saved.call(this, switchData);
         });
 
-    registerOverridePrototype(WindowManager.WorkspaceTracker, '_checkWorkspaces', _checkWorkspaces);
+    registerOverrideProp(Main.wm._workspaceTracker, '_checkWorkspaces', _checkWorkspaces);
 
     if (WindowManager.TouchpadWorkspaceSwitchAction) // disable 4-finger swipe
         registerOverridePrototype(WindowManager.TouchpadWorkspaceSwitchAction, '_checkActivated', () => false);
 
     // disable swipe gesture trackers
     swipeTrackers.forEach(t => {
-        registerOverrideProp(t, "enabled", false);
+        registerOverrideProp(t, "enabled", false, false);
     });
 
     registerOverridePrototype(Workspace.UnalignedLayoutStrategy, '_sortRow', row => row);
@@ -215,12 +273,80 @@ function setupOverrides() {
             this._shouldShow = shouldShow;
             this.notify('should-show');
         });
+
+    /**
+     * Provides ability to set AltTab window preview sizes (which is a little harder in 45+).
+     * https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/altTab.js#L1002
+     */
+    registerOverridePrototype(AltTab.WindowIcon, '_init', function(window, mode) {
+        const saved = getSavedPrototype(AltTab.WindowIcon, '_init');
+        saved.call(this, window, mode);
+
+        const WINDOW_PREVIEW_SIZE = 128;
+        const AppIconMode = {
+            THUMBNAIL_ONLY: 1,
+            APP_ICON_ONLY: 2,
+            BOTH: 3,
+        };
+        const APP_ICON_SIZE = 96;
+        const APP_ICON_SIZE_SMALL = 48;
+
+        let mutterWindow = this.window.get_compositor_private();
+
+        this._icon.destroy_all_children();
+
+        this.monitor = Tiling.spaces.selectedSpace.monitor;
+        let _createWindowClone = (window, size) => {
+            let [width, height] = window.get_size();
+            let scale = Math.min(1.0, size / width, size / height);
+            return new Clutter.Clone({
+                source: window,
+                width: width * scale,
+                height: height * scale,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                // usual hack for the usual bug in ClutterBinLayout...
+                x_expand: true,
+                y_expand: true,
+            });
+        };
+
+        let size;
+        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const scale = Settings.prefs.window_switcher_preview_scale;
+        // scale size based on PaperWM's minimap-scale
+        if (scale > 0) {
+            size = Math.round(this.monitor.height * scale);
+        } else {
+            size = WINDOW_PREVIEW_SIZE;
+        }
+        switch (mode) {
+        case AppIconMode.THUMBNAIL_ONLY:
+            this._icon.add_actor(_createWindowClone(mutterWindow, size * scaleFactor));
+            break;
+
+        case AppIconMode.BOTH:
+            this._icon.add_actor(_createWindowClone(mutterWindow, size * scaleFactor));
+
+            if (this.app) {
+                this._icon.add_actor(
+                    this._createAppIcon(this.app, APP_ICON_SIZE_SMALL));
+            }
+            break;
+
+        case AppIconMode.APP_ICON_ONLY:
+            size = APP_ICON_SIZE;
+            this._icon.add_actor(this._createAppIcon(this.app, size));
+        }
+
+        this._icon.set_size(size * scaleFactor, size * scaleFactor);
+    });
 }
 
 /**
  * Enables any registered overrides.
  */
-function enableOverrides() {
+export function enableOverrides() {
     for (let [obj, props] of savedProps) {
         for (let name in props) {
             enableOverride(obj, name);
@@ -228,7 +354,7 @@ function enableOverrides() {
     }
 }
 
-function disableOverrides() {
+export function disableOverrides() {
     for (let [obj, props] of savedProps) {
         for (let name in props) {
             obj[name] = props[name].saved;
@@ -244,7 +370,7 @@ function disableOverrides() {
  * @param key
  */
 let runtimeDisables = [];
-function saveRuntimeDisable(schemaSettings, key, disableValue) {
+export function saveRuntimeDisable(schemaSettings, key, disableValue) {
     try {
         let origValue = schemaSettings.get_boolean(key);
         schemaSettings.set_boolean(key, disableValue);
@@ -288,7 +414,7 @@ function saveRuntimeDisable(schemaSettings, key, disableValue) {
  * purposes (we save to PaperWM's setting just in gnome terminates before PaperWM can
  * restore the original user settings).  These settings are then restored on disable().
  */
-function setupRuntimeDisables() {
+export function setupRuntimeDisables() {
     saveRuntimeDisable(mutterSettings, 'attach-modal-dialogs', false);
     saveRuntimeDisable(mutterSettings, 'workspaces-only-on-primary', false);
     saveRuntimeDisable(mutterSettings, 'edge-tiling', false);
@@ -298,7 +424,7 @@ function setupRuntimeDisables() {
  * Restores the runtime settings that were disabled when
  * PaperWM was enabled.
  */
-function restoreRuntimeDisables() {
+export function restoreRuntimeDisables() {
     if (Main.sessionMode.isLocked) {
         return;
     }
@@ -316,8 +442,8 @@ function restoreRuntimeDisables() {
  * move from gnome version to gnome version.  Next to the swipe tracker locations
  * below are the gnome versions when they were first (or last) seen.
  */
-var swipeTrackers; // exported
-function setupSwipeTrackers() {
+export let swipeTrackers; // exported
+export function setupSwipeTrackers() {
     swipeTrackers = [
         Main?.overview?._swipeTracker, // gnome 40+
         Main?.overview?._overview?._controls?._workspacesDisplay?._swipeTracker, // gnome 40+
@@ -327,7 +453,7 @@ function setupSwipeTrackers() {
 }
 
 let actions;
-function setupActions() {
+export function setupActions() {
     /*
      * Some actions work rather poorly.
      * In particular the 3-finger hold + tap can randomly activate a minimized
@@ -342,37 +468,7 @@ function setupActions() {
     actions.forEach(a => global.stage.remove_action(a));
 }
 
-let savedProps, signals;
-let gsettings, mutterSettings;
-function enable() {
-    savedProps = new Map();
-    gsettings = ExtensionUtils.getSettings();
-    mutterSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
-    signals = new Utils.Signals();
-    setupSwipeTrackers();
-    setupOverrides();
-    enableOverrides();
-    setupRuntimeDisables();
-    setupActions();
-}
-
-function disable() {
-    disableOverrides();
-    restoreRuntimeDisables();
-    actions.forEach(a => global.stage.add_action(a));
-    actions = null;
-
-    signals.destroy();
-    signals = null;
-
-    savedProps = null;
-    swipeTrackers = null;
-    gsettings = null;
-    mutterSettings = null;
-    actions = null;
-}
-
-function sortWindows(a, b) {
+export function sortWindows(a, b) {
     let aw = a.metaWindow;
     let bw = b.metaWindow;
     let spaceA = Tiling.spaces.spaceOfWindow(aw);
@@ -391,7 +487,7 @@ function sortWindows(a, b) {
     return ia - ib;
 }
 
-function computeLayout40(windows, layoutParams) {
+export function computeLayout40(windows, layoutParams) {
     layoutParams = Params.parse(layoutParams, {
         numRows: 0,
     });
@@ -457,7 +553,7 @@ function computeLayout40(windows, layoutParams) {
     };
 }
 
-function _checkWorkspaces() {
+export function _checkWorkspaces() {
     let workspaceManager = global.workspace_manager;
     let i;
     let emptyWorkspaces = [];
@@ -553,7 +649,7 @@ function _checkWorkspaces() {
     return false;
 }
 
-function addWindow(window, metaWindow) {
+export function addWindow(window, metaWindow) {
     if (this._windows.has(window))
         return;
 
