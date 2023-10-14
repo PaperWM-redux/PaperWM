@@ -190,10 +190,11 @@ export class ClickOverlay {
          * stop navigation before activating workspace. Avoids an issue
          * in multimonitors where workspaces can get snapped to another monitor.
          */
-        Navigator.finishNavigation();
+        Navigator.finishDispatching();
+        Navigator.finishNavigation(true);
         this.deactivate();
         let selected = this.space.selectedWindow;
-        this.space.activateWithFocus(selected);
+        this.space.activateWithFocus(selected, false, false);
     }
 
     activate() {
