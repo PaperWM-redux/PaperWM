@@ -932,6 +932,27 @@ export class Space extends Array {
         return this.getWindows().some(w => w.fullscreen);
     }
 
+    /**
+     * Unfullscreens windows (except exceptMetaWindow).
+     * @param {MetaWindow} exceptMetaWindow
+     */
+    unfullscreenWindows(exceptMetaWindow) {
+        let needLayout = false;
+        this.getWindows()
+                .filter(w => w !== exceptMetaWindow)
+                .forEach(w => {
+                    w.unmaximize(Meta.MaximizeFlags.BOTH);
+                    if (w.fullscreen) {
+                        w.unmake_fullscreen();
+                        needLayout = true;
+                    }
+                });
+
+        if (needLayout) {
+            this.queueLayout(false);
+        }
+    }
+
     swap(direction, metaWindow) {
         metaWindow = metaWindow || this.selectedWindow;
 
@@ -997,6 +1018,7 @@ export class Space extends Array {
         if (index === -1) {
             return;
         }
+
         let row = space[index].indexOf(space.selectedWindow);
         switch (direction) {
         case Meta.MotionDirection.RIGHT:
@@ -3083,13 +3105,19 @@ export function positionChangeHandler(metaWindow) {
 }
 
 export function resizeHandler(metaWindow) {
+    // if fullscreen event then return (let fullscreenHandler handle fullscreen)
+    if (metaWindow.fullscreen) {
+        return;
+    }
+
     // if navigator is showing, reset/refresh it after a window has resized
     if (Navigator.navigating) {
         Navigator.getNavigator().minimaps.forEach(m => typeof m !== 'number' && m.reset());
     }
 
-    if (inGrab && inGrab.window === metaWindow)
+    if (inGrab && inGrab.window === metaWindow) {
         return;
+    }
 
     const f = metaWindow.get_frame_rect();
     metaWindow._targetWidth = null;
@@ -3101,12 +3129,11 @@ export function resizeHandler(metaWindow) {
         return;
     }
 
-    const fsf = metaWindow?._fullscreen_frame;
+    // _fullscreen_frame is to save size for restoring on unfullscreen
     const selected = metaWindow === space.selectedWindow;
-    let addCallback = false;
-    let x;
 
     let needLayout = false;
+    const fsf = metaWindow?._fullscreen_frame;
     // if target width differs ==> layout
     if (metaWindow._targetWidth !== f.width || metaWindow._targetHeight !== f.height) {
         needLayout = true;
@@ -3119,75 +3146,20 @@ export function resizeHandler(metaWindow) {
         }
     }
 
-    const moveTo = (x, animate) => {
-        move_to(space, metaWindow, {
-            x,
-            animate,
-        });
-    };
-
-    // if window is fullscreened, then don't animate background space.container animation etc.
-    if (metaWindow.fullscreen) {
-        metaWindow._fullscreen_lock = true;
-        space.hideSelection();
-        space.layout(false, { callback: moveTo(0, false), centerIfOne: false });
-        return;
-    }
-
-    space.showSelection();
-    x = metaWindow?._fullscreen_frame?.x ?? f.x;
-    x -= space.monitor.x;
-    x = Math.max(x, Settings.prefs.horizontal_margin);
-
-    // if pwm fullscreen previously
-    if (metaWindow._fullscreen_lock) {
-        space.enableWindowPositionBar();
-        delete metaWindow._fullscreen_lock;
-        needLayout = true;
-        addCallback = true;
-    }
-    else {
-        // save width for later exit-fullscreen restoring
-        saveFullscreenFrame(metaWindow, true);
-    }
-
     if (needLayout && !space._inLayout) {
-        // Restore window position when eg. exiting fullscreen
-        let callback = () => {};
-        if (addCallback && !Navigator.navigating && selected) {
-            callback = () => {
-                moveTo(x, true);
-            };
+        if (!Navigator.navigating && selected) {
+            // Resizing from within a size-changed signal is troube (#73). Queue instead.
+            space.queueLayout(true);
         }
-
-        // Resizing from within a size-changed signal is troube (#73). Queue instead.
-        space.queueLayout(true, { callback, centerIfOne: false });
     }
 }
 
 /**
  * ResizeHandler for non-tiled windows
- * @param {*} metaWindow
+ * @param {MetaWindow} metaWindow
  */
 export function nonTiledSizeHandler(metaWindow) {
-    // if window is fullscreen ==> set lock
-    if (metaWindow.fullscreen) {
-        metaWindow._fullscreen_lock = true;
-        return;
-    }
-
-    // if pwm fullscreen previously
-    if (metaWindow._fullscreen_lock) {
-        delete metaWindow._fullscreen_lock;
-        let fsf = metaWindow._fullscreen_frame;
-        if (fsf) {
-            metaWindow.move_resize_frame(true, fsf.x, fsf.y, fsf.width, fsf.height);
-            delete metaWindow._fullscreen_frame;
-        }
-    }
-    else {
-        saveFullscreenFrame(metaWindow);
-    }
+    saveFullscreenFrame(metaWindow);
 }
 
 /**
@@ -3196,25 +3168,81 @@ export function nonTiledSizeHandler(metaWindow) {
  * @returns
  */
 export function fullscreenHander(metaWindow) {
-    // if exiting fullscreen or if has been processed
-    if (!metaWindow.fullscreen || metaWindow._fullscreen_handled) {
+    const space = spaces.spaceOfWindow(metaWindow);
+
+    // if is unfullscreened
+    if (!metaWindow.fullscreen) {
+        let fsf = metaWindow._fullscreen_frame;
+
+        // if is non-tiled => restore by move_resize_frame
+        if (space.indexOf(metaWindow) === -1) {
+            // restore pre fullscreen positions
+            if (fsf) {
+                metaWindow.move_resize_frame(true, fsf.x, fsf.y, fsf.width, fsf.height);
+                delete metaWindow._fullscreen_frame;
+            }
+        }
+        else {
+            // restore tiled position
+            const f = metaWindow.get_frame_rect();
+            let x = metaWindow?._fullscreen_frame?.x ?? f.x;
+            x -= space.monitor.x;
+            x = Math.max(x, Settings.prefs.horizontal_margin);
+            move_to(space, metaWindow, {
+                x,
+                animate: true,
+            });
+        }
+
+        // remove fullscreen lock for position updates
+        delete metaWindow._fullscreen_lock;
+
+        space.showSelection();
+        return;
+    }
+
+    // if exiting fullscreen
+    if (metaWindow._fullscreen_handled) {
         delete metaWindow._fullscreen_handled;
+        space.enableWindowPositionBar();
         Topbar.fixTopBar();
         return;
     }
+
+    /**
+     * Handle fullscreen windows here but first unfullscreening,
+     * then moving to a safe location, then setting up for controlled
+     * fullscreening.
+     */
 
     // undo fullscreen until can handle this
     metaWindow.unmake_fullscreen();
 
     // now move
-    const space = spaces.spaceOfWindow(metaWindow);
+    saveFullscreenFrame(metaWindow, true);
+
+    // set fullscreen lock flag to stop update screenframe position when moved
+    metaWindow._fullscreen_lock = true;
+
+    const executeFullscreen = () => {
+        metaWindow._fullscreen_handled = true;
+        space.hideSelection();
+        metaWindow.make_fullscreen();
+        Topbar.fixTopBar();
+    };
+
+    // if non-tiled
+    if (space.indexOf(metaWindow) === -1) {
+        executeFullscreen();
+        return;
+    }
+
+    // otherwise, move into safe position then execute fullscree;
     move_to(space, metaWindow, {
         x: 0,
         animate: false,
         callback: () => {
-            metaWindow._fullscreen_handled = true;
-            metaWindow.make_fullscreen();
-            Topbar.fixTopBar();
+            executeFullscreen();
         },
     });
 }
@@ -3472,6 +3500,7 @@ export function insertWindow(metaWindow, { existing }) {
          * as normal (non-fullscreen) and will be fullscreened after a timeout on actor show.
          * see https://github.com/paperwm/PaperWM/issues/638
          */
+        /*
         if (metaWindow.fullscreen) {
             animateWindow(metaWindow);
             callbackOnActorShow(actor, () => {
@@ -3484,6 +3513,7 @@ export function insertWindow(metaWindow, { existing }) {
                 });
             });
         }
+        */
     }
 
     if (metaWindow.is_on_all_workspaces()) {
