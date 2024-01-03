@@ -3000,7 +3000,7 @@ export function registerWindow(metaWindow) {
     });
     signals.connect(metaWindow, 'size-changed', allocateClone);
     // Note: runs before gnome-shell's minimize handling code
-    signals.connect(metaWindow, 'notify::fullscreen', Topbar.fixTopBar);
+    signals.connect(metaWindow, 'notify::fullscreen', fullscreenHander);
     signals.connect(metaWindow, 'notify::minimized', metaWindow => {
         minimizeHandler(metaWindow);
     });
@@ -3188,6 +3188,35 @@ export function nonTiledSizeHandler(metaWindow) {
     else {
         saveFullscreenFrame(metaWindow);
     }
+}
+
+/**
+ * Handle fullscreen event change on metaWindow.
+ * @param {MetaWindow} metaWindow
+ * @returns
+ */
+export function fullscreenHander(metaWindow) {
+    // if exiting fullscreen or if has been processed
+    if (!metaWindow.fullscreen || metaWindow._fullscreen_handled) {
+        delete metaWindow._fullscreen_handled;
+        Topbar.fixTopBar();
+        return;
+    }
+
+    // undo fullscreen until can handle this
+    metaWindow.unmake_fullscreen();
+
+    // now move
+    const space = spaces.spaceOfWindow(metaWindow);
+    move_to(space, metaWindow, {
+        x: 0,
+        animate: false,
+        callback: () => {
+            metaWindow._fullscreen_handled = true;
+            metaWindow.make_fullscreen();
+            Topbar.fixTopBar();
+        },
+    });
 }
 
 /**
@@ -3723,6 +3752,8 @@ export function move_to(space, metaWindow, options = {}) {
     let x = options.x ?? 0;
     let force = options.force ?? false;
     let animate = options.animate ?? true;
+    let callback = options?.callback;
+
     let ensureAnimation = options.ensureAnimation ?? Settings.EnsureViewportAnimation.TRANSLATE;
     if (space.indexOf(metaWindow) === -1)
         return;
@@ -3737,6 +3768,7 @@ export function move_to(space, metaWindow, options = {}) {
     const done = () => {
         space.moveDone();
         space.fixOverlays(metaWindow);
+        callback && callback();
     };
 
     space.targetX = target;
