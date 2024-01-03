@@ -89,7 +89,7 @@ let signals, backgroundGroup, grabSignals;
 let gsettings, backgroundSettings, interfaceSettings;
 let displayConfig;
 let saveState;
-let startupTimeoutId, timerId, fullscrenStartTimeout;
+let startupTimeoutId, timerId, swapMonitorTimeout;
 let workspaceSettings;
 export let inGrab;
 export function enable(extension) {
@@ -189,8 +189,8 @@ export function disable () {
     startupTimeoutId = null;
     Utils.timeout_remove(timerId);
     timerId = null;
-    Utils.timeout_remove(fullscrenStartTimeout);
-    fullscrenStartTimeout = null;
+    Utils.timeout_remove(swapMonitorTimeout);
+    swapMonitorTimeout = null;
 
     grabSignals.destroy();
     grabSignals = null;
@@ -937,20 +937,17 @@ export class Space extends Array {
      * @param {MetaWindow} exceptMetaWindow
      */
     unfullscreenWindows(exceptMetaWindow) {
-        let needLayout = false;
+        if (!this.hasFullScreenWindow()) {
+            return;
+        }
         this.getWindows()
                 .filter(w => w !== exceptMetaWindow)
                 .forEach(w => {
                     w.unmaximize(Meta.MaximizeFlags.BOTH);
                     if (w.fullscreen) {
                         w.unmake_fullscreen();
-                        needLayout = true;
                     }
                 });
-
-        if (needLayout) {
-            this.queueLayout(false);
-        }
     }
 
     swap(direction, metaWindow) {
@@ -2210,6 +2207,13 @@ export const Spaces = class Spaces extends Map {
         if (i === -1)
             return;
 
+        this.forEach(space => {
+            space.getWindows().filter(w => w.fullscreen).forEach(w => {
+                w._swapFullscreen = true;
+                w.unmake_fullscreen();
+            });
+        });
+
         let navFinish = () => Navigator.getNavigator().finish();
         // action on current monitor
         this.selectStackSpace(Meta.MotionDirection.DOWN);
@@ -2230,11 +2234,13 @@ export const Spaces = class Spaces extends Map {
          * see https://github.com/paperwm/PaperWM/issues/638
          */
         this.forEach(space => {
-            space.getWindows().filter(w => w.fullscreen).forEach(w => {
-                animateWindow(w);
-                w.unmake_fullscreen();
-                w.make_fullscreen();
-                showWindow(w);
+            space.getWindows().filter(w => w._swapFullscreen).forEach(w => {
+                swapMonitorTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                    delete w._swapFullscreen;
+                    w.make_fullscreen();
+                    swapMonitorTimeout = null;
+                    return false; // on return false destroys timeout
+                });
             });
         });
 
@@ -3494,26 +3500,6 @@ export function insertWindow(metaWindow, { existing }) {
             activateWindowAfterRendered(actor, metaWindow);
             return;
         }
-
-        /**
-         * Address inserting windows that are already fullscreen: windows will be inserted
-         * as normal (non-fullscreen) and will be fullscreened after a timeout on actor show.
-         * see https://github.com/paperwm/PaperWM/issues/638
-         */
-        /*
-        if (metaWindow.fullscreen) {
-            animateWindow(metaWindow);
-            callbackOnActorShow(actor, () => {
-                fullscrenStartTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-                    metaWindow.unmake_fullscreen();
-                    showWindow(metaWindow);
-                    metaWindow.make_fullscreen();
-                    fullscrenStartTimeout = null;
-                    return false; // on return false destroys timeout
-                });
-            });
-        }
-        */
     }
 
     if (metaWindow.is_on_all_workspaces()) {
