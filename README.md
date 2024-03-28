@@ -42,7 +42,7 @@ _Note: the AUR package is git-based install package, so re-installing that packa
 
 Clone the repo and check out the branch supporting the Gnome Shell version you're running.
 
-- 45 (current Gnome Shell release): https://github.com/paperwm/PaperWM/tree/release
+- 45-46 (current Gnome Shell release): https://github.com/paperwm/PaperWM/tree/release
 - 42-44: https://github.com/paperwm/PaperWM/tree/gnome-44
 - 40-41: https://github.com/paperwm/PaperWM/tree/gnome-40
 - 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
