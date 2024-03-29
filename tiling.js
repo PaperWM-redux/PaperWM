@@ -4774,7 +4774,6 @@ export function moveUpSpace(mw, space) {
 /**
    Detach the @metaWindow, storing it at the bottom right corner while
    navigating. When done, insert all the detached windows again.
-   Activates last taken window when navigator operation complete.
  */
 export function takeWindow(metaWindow, space, { navigator }) {
     space = space || spaces.selectedSpace;
@@ -4784,8 +4783,47 @@ export function takeWindow(metaWindow, space, { navigator }) {
         return;
 
     if (!navigator._moving) {
+        navigator.showTakeHint(true);
         navigator._moving = [];
+
+        // get the action dispatcher signal to connect to
+        Navigator.getActionDispatcher(Clutter.GrabState.KEYBOARD)
+            .addKeypressCallback((actor, event) => {
+                const keysym = event.get_key_symbol();
+                if (keysym === Clutter.KEY_space) {
+                    // remove the last window you got
+                    const pop = navigator._moving.pop();
+                    let selectedSpace = spaces.selectedSpace;
+                    if (pop) {
+                        pop.change_workspace(selectedSpace.workspace);
+                        insertWindow(pop, { existing: true });
+                        // make space selectedWindow (keeps index for next insert)
+                        selectedSpace.selectedWindow = pop;
+                        ensureViewport(pop);
+                    }
+                    // return true if this was actioned
+                    return true;
+                }
+
+                // quit / close all that have been taken
+                if (keysym === Clutter.KEY_q) {
+                    // close all taken windows
+                    navigator._moving.forEach(w => {
+                        insertWindow(w, { existing: true });
+                        w.delete(global.get_current_time());
+                    });
+
+                    navigator._moving = [];
+                    return true;
+                }
+
+                // return false if no action taken
+                return false;
+            });
+
+
         signals.connectOneShot(navigator, 'destroy', () => {
+            navigator.showTakeHint(false);
             let selectedSpace = spaces.selectedSpace;
             navigator._moving.forEach(w => {
                 w.change_workspace(selectedSpace.workspace);
@@ -4821,8 +4859,7 @@ export function takeWindow(metaWindow, space, { navigator }) {
             y: metaWindow.clone.y,
         }));
     metaWindow.clone.set_position(point.x, point.y);
-    let x = Math.round(space.monitor.x +
-        space.monitor.width -
+    let x = Math.round(space.monitor.x + space.monitor.width -
         (0.1 * space.monitor.width * (1 + navigator._moving.length)));
     let y = Math.round(space.monitor.y + space.monitor.height * 2 / 3) +
         20 * navigator._moving.length;

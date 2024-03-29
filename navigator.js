@@ -1,10 +1,14 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { Utils, Tiling, Keybindings, Topbar, Scratch, Minimap } from './imports.js';
+import {
+    Utils, Tiling, Keybindings, Topbar,
+    Scratch, Minimap, Settings
+} from './imports.js';
 
 /**
   Navigation and previewing functionality.
@@ -93,8 +97,18 @@ class ActionDispatcher {
         this.signals.connect(this.actor, 'key-press-event', this._keyPressEvent.bind(this));
         this.signals.connect(this.actor, 'key-release-event', this._keyReleaseEvent.bind(this));
 
+        this.keyPressCallbacks = [];
+
         this._noModsTimeoutId = null;
         this._doActionTimeout = null;
+    }
+
+    /**
+     * Adds a signal to this dispatcher.  Will be destroyed when this
+     * dispatcher is destroyed.
+     */
+    addKeypressCallback(handler) {
+        this.keyPressCallbacks.push(handler);
     }
 
     show(backward, binding, mask) {
@@ -147,7 +161,16 @@ class ActionDispatcher {
             this._modifierMask = getModLock(event.get_state());
         }
         let keysym = event.get_key_symbol();
-        let action = global.display.get_keybinding_action(event.get_key_code(), event.get_state());
+        let action = global.display.get_keybinding_action(
+            event.get_key_code(),
+            event.get_state());
+
+        // run callbacks and if any return true, stop bubbling
+        if (this.keyPressCallbacks.some(callback => {
+            return callback(actor, event);
+        })) {
+            return Clutter.EVENT_STOP;
+        }
 
         // Popping the modal on keypress doesn't work properly, as the release
         // event will leak to the active window. To work around this we initate
@@ -264,6 +287,16 @@ export let navigator;
 class NavigatorClass {
     constructor() {
         console.debug("#navigator", "nav created");
+
+        /**
+         * Hint for using take window mode (used in `takeWindow`).
+         */
+        this.takeHint = new St.Label({ style_class: 'take-window-hint' });
+        this.takeHint.clutter_text.set_markup(
+            `<i>• release keys to return all taken windows</i>
+<i>• press <span foreground="#6be67b">spacebar</span> to return the last taken window</i>
+<i>• press <span foreground="#6be67b">q</span> to close all taken windows</i>`);
+
         navigating = true;
 
         this.was_accepted = false;
@@ -299,6 +332,38 @@ class NavigatorClass {
             this.minimaps.set(space, minimapId);
         } else {
             typeof minimap !== 'number' && minimap.show();
+        }
+    }
+
+    /**
+     * Shows the "take window" hint.
+     * @param {Boolean} show
+     */
+    showTakeHint(show = true) {
+        if (show) {
+            // set position on stage, take into account monitor
+            const monitor = this.space.monitor;
+            const x = monitor.x + monitor.width - 334;
+            const y = monitor.height - 80;
+
+            this.takeHint.opacity = 0;
+            global.stage.add_child(this.takeHint);
+            this.takeHint.set_position(x, y);
+
+            Utils.Easer.addEase(this.takeHint, {
+                time: Settings.prefs.animation_time,
+                opacity: 255,
+            });
+        } else {
+            this.takeHint.opacity = 255;
+            global.stage.add_child(this.takeHint);
+            Utils.Easer.addEase(this.takeHint, {
+                time: Settings.prefs.animation_time,
+                opacity: 0,
+                onComplete: () => {
+                    global.stage.remove_child(this.takeHint);
+                },
+            });
         }
     }
 
