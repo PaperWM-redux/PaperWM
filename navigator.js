@@ -47,22 +47,16 @@ export function disable() {
     index = null;
 }
 
-export function dec2bin(dec) {
-    return (dec >>> 0).toString(2);
-}
+export function primaryModifier(mask) {
+    if (mask === 0)
+        return 0;
 
-const modMask =
-    Clutter.ModifierType.SUPER_MASK |
-    Clutter.ModifierType.HYPER_MASK |
-    Clutter.ModifierType.META_MASK |
-    Clutter.ModifierType.CONTROL_MASK |
-    Clutter.ModifierType.MOD1_MASK |
-    // Clutter.ModifierType.MOD2_MASK | uhmm, for some reason this is triggered on keygrab
-    Clutter.ModifierType.MOD3_MASK |
-    Clutter.ModifierType.MOD4_MASK |
-    Clutter.ModifierType.MOD5_MASK;
-export function getModLock(mods) {
-    return mods & modMask;
+    let primary = 1;
+    while (mask > 1) {
+        mask >>= 1;
+        primary <<= 1;
+    }
+    return primary;
 }
 
 /**
@@ -112,7 +106,7 @@ class ActionDispatcher {
     }
 
     show(backward, binding, mask) {
-        this._modifierMask = getModLock(mask);
+        this._modifierMask = primaryModifier(mask);
         this.navigator = getNavigator();
         Topbar.fixTopBar();
         let actionId = Keybindings.idOf(binding);
@@ -158,7 +152,7 @@ class ActionDispatcher {
 
     _keyPressEvent(actor, event) {
         if (!this._modifierMask) {
-            this._modifierMask = getModLock(event.get_state());
+            this._modifierMask = primaryModifier(event.get_state());
         }
         let keysym = event.get_key_symbol();
         let action = global.display.get_keybinding_action(
@@ -167,7 +161,7 @@ class ActionDispatcher {
 
         // run callbacks and if any return true, stop bubbling
         if (this.keyPressCallbacks.some(callback => {
-            return callback(actor, event);
+            return callback(this._modifierMask, keysym, event);
         })) {
             return Clutter.EVENT_STOP;
         }
@@ -293,9 +287,11 @@ class NavigatorClass {
          */
         this.takeHint = new St.Label({ style_class: 'take-window-hint' });
         this.takeHint.clutter_text.set_markup(
-            `<i>• release keys to return all taken windows</i>
-<i>• press <span foreground="#6be67b">spacebar</span> to return the last taken window</i>
-<i>• press <span foreground="#6be67b">q</span> to close all taken windows</i>`);
+            `<i>• press <span foreground="#6be67b">spacebar</span> to return the last taken window</i>
+<i>• press <span foreground="#6be67b">tab</span> to cycle forward through taken windows</i>
+<i>• press <span foreground="#6be67b">shift+tab</span> to cycle backward through taken windows</i>
+<i>• press <span foreground="#6be67b">q</span> to close all taken windows</i>`
+        );
 
         navigating = true;
 
@@ -343,8 +339,8 @@ class NavigatorClass {
         if (show) {
             // set position on stage, take into account monitor
             const monitor = this.space.monitor;
-            const x = monitor.x + monitor.width - 334;
-            const y = monitor.height - 80;
+            const x = monitor.x + monitor.width - 402;
+            const y = monitor.height - 100;
 
             this.takeHint.opacity = 0;
             global.stage.add_child(this.takeHint);
