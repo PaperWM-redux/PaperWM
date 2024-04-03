@@ -257,12 +257,22 @@ export class UnalignedLayoutStrategy extends Workspace.LayoutStrategy {
 export function sortWindows(a, b) {
     let aw = a.metaWindow;
     let bw = b.metaWindow;
+    if (!aw && !bw) {
+        return 0;
+    }
+    if (!aw) {
+        return 1;
+    }
+    if (!bw) {
+        return -1;
+    }
+
     let spaceA = Tiling.spaces.spaceOfWindow(aw);
     let spaceB = Tiling.spaces.spaceOfWindow(bw);
     let ia = spaceA.indexOf(aw);
     let ib = spaceB.indexOf(bw);
     if (ia === -1 && ib === -1) {
-        return a.metaWindow.get_stable_sequence() - b.metaWindow.get_stable_sequence();
+        return aw.get_stable_sequence() - bw.get_stable_sequence();
     }
     if (ia === -1) {
         return -1;

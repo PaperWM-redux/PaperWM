@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */
+/* eslint-disable no-invalid-this */
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -12,7 +14,7 @@ import * as WorkspaceAnimation from 'resource:///org/gnome/shell/ui/workspaceAni
 import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 import * as WindowManager from 'resource:///org/gnome/shell/ui/windowManager.js';
 import * as WindowPreview from 'resource:///org/gnome/shell/ui/windowPreview.js';
-import * as Params from 'resource:///org/gnome/shell/misc/params.js';
+import * as Screenshot from 'resource:///org/gnome/shell/ui/screenshot.js';
 
 import { Utils, Tiling, Scratch, Settings, OverviewLayout } from './imports.js';
 
@@ -413,6 +415,34 @@ export function setupOverrides() {
         }
 
         this._icon.set_size(size * scaleFactor, size * scaleFactor);
+    });
+
+    registerOverridePrototype(Screenshot.ScreenshotUI, 'open', async function(mode) {
+        const saved = getSavedPrototype(Screenshot.ScreenshotUI, 'open');
+
+        if (!Main.overview.visible) {
+            Tiling.spaces.forEach(s => {
+                s.visible.forEach(w => {
+                    w.get_compositor_private()?.remove_clip();
+                });
+            });
+        }
+
+        await saved.call(this, mode);
+    });
+
+    registerOverridePrototype(Screenshot.ScreenshotUI, 'close', function(instantly) {
+        const saved = getSavedPrototype(Screenshot.ScreenshotUI, 'close');
+
+        if (!Main.overview.visible) {
+            Tiling.spaces.forEach(s => {
+                s.visible.forEach(w => {
+                    s.applyClipToClone(w);
+                });
+            });
+        }
+
+        saved.call(this, instantly);
     });
 }
 

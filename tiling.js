@@ -1293,16 +1293,7 @@ export class Space extends Array {
         this.visible.forEach(w => {
             if (Easer.isEasing(w.clone))
                 return;
-            let actor = w.get_compositor_private();
-
-            // The actor's width/height is not correct right after resize
-            let b = w.get_buffer_rect();
-            const x = monitor.x - b.x;
-            const y = monitor.y - b.y;
-            const cw = monitor.width;
-            const ch = monitor.height;
-            actor.set_clip(x, y, cw, ch);
-
+            this.applyClipToClone(w);
             showWindow(w);
         });
 
@@ -1326,6 +1317,29 @@ export class Space extends Array {
         }
 
         this.emit('move-done');
+    }
+
+    /**
+     * Applies clipping to metaWindow's clone.
+     * @param {MetaWindow} metaWindow
+     */
+    applyClipToClone(metaWindow) {
+        if (!metaWindow) {
+            return;
+        }
+
+        let actor = metaWindow.get_compositor_private();
+        if (!actor) {
+            return;
+        }
+
+        // The actor's width/height is not correct right after resize
+        const b = metaWindow.get_buffer_rect();
+        const x = this.monitor.x - b.x;
+        const y = this.monitor.y - b.y;
+        const cw = this.monitor.width;
+        const ch = this.monitor.height;
+        actor.set_clip(x, y, cw, ch);
     }
 
     startAnimate() {
