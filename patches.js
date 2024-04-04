@@ -562,6 +562,7 @@ export function setupActions() {
      * In particular the 3-finger hold + tap can randomly activate a minimized
      * window when tapping after a 3-finger swipe
      */
+    // eslint-disable-next-line array-callback-return
     actions = global.stage.get_actions().filter(a => {
         switch (a.constructor) {
         case WindowManager.AppSwitchAction:
@@ -649,7 +650,7 @@ export function _checkWorkspaces() {
 
     // Keep visible spaces
     if (Tiling?.spaces?.monitors) {
-        for (let [monitor, space] of Tiling.spaces.monitors) {
+        for (let [, space] of Tiling.spaces.monitors) {
             emptyWorkspaces[space.workspace.index()] = false;
         }
     }
@@ -657,6 +658,7 @@ export function _checkWorkspaces() {
     // Delete empty workspaces except for the last one; do it from the end
     // to avoid index changes
     for (i = lastIndex; i >= 0; i--) {
+        // eslint-disable-next-line eqeqeq
         if (emptyWorkspaces[i] && i != lastEmptyIndex) {
             workspaceManager.remove_workspace(this._workspaces[i]
                 , global.get_current_time());

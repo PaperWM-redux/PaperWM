@@ -261,10 +261,10 @@ export function sortWindows(a, b) {
         return 0;
     }
     if (!aw) {
-        return 1;
+        return -1;
     }
     if (!bw) {
-        return -1;
+        return 1;
     }
 
     let spaceA = Tiling.spaces.spaceOfWindow(aw);

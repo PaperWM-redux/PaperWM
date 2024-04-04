@@ -69,6 +69,11 @@ export function multimonitorSupport() {
 export function enableMultimonitorSupport() {
     pointerWatch = PointerWatcher.getPointerWatcher().addWatch(100,
         () => {
+            // if overview return
+            if (Main.overview.visible) {
+                return;
+            }
+
             const monitor = Utils.monitorAtCurrentPoint();
             const space = Tiling.spaces.monitors.get(monitor);
 
