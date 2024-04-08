@@ -34,7 +34,7 @@ export const PreviewMode = { NONE: 0, STACK: 1, SEQUENTIAL: 2 }; // export
 export let inPreview = PreviewMode.NONE; // export
 
 // DEFAULT mode is normal/original PaperWM window focus behaviour
-export const FocusModes = { DEFAULT: 0, CENTER: 1 }; // export
+export const FocusModes = { DEFAULT: 0, CENTER: 1, EDGE: 2 }; // export
 
 export const CycleWindowSizesDirection = { FORWARD: 0, BACKWARDS: 1 };
 
@@ -343,6 +343,9 @@ export class Space extends Array {
         let workspace = this.workspace;
         let prevSpace = saveState.getPrevSpaceByUUID(this.uuid);
         console.info(`restore by uuid: ${this.uuid}, prevSpace name: ${prevSpace?.name}`);
+
+        // get previous focus mode (if exists)
+        const focusMode = prevSpace?.focusMode;
         this.addAll(prevSpace);
         saveState.prevSpaces.delete(workspace);
         this._populated = true;
@@ -352,7 +355,7 @@ export class Space extends Array {
         this.setSpaceTopbarElementsVisible();
 
         // apply default focus mode
-        setFocusMode(getDefaultFocusMode(), this);
+        setFocusMode(focusMode ?? getDefaultFocusMode(), this);
 
         this.getWindows().forEach(w => {
             animateWindow(w);
@@ -3807,11 +3810,21 @@ export function ensuredX(meta_window, space) {
     let min = workArea.x;
     let max = min + workArea.width;
 
-    if (space.focusMode == FocusModes.CENTER) {
+    if (space.focusMode === FocusModes.CENTER) {
         // window switching should centre focus
         x = workArea.x + Math.round(workArea.width / 2 - frame.width / 2);
     } else if (meta_window.fullscreen) {
         x = 0;
+    } else if (space.focusMode === FocusModes.EDGE) {
+        // Align to the closest edge, with special cases for
+        // only (center), first (left), and last (right) windows
+        if (index === 0 && space.length === 1)
+            x = min + Math.round((workArea.width - frame.width) / 2);
+        else if (index === 0 || (Math.abs(x - min) < Math.abs(x + frame.width - max) &&
+                                 index !== space.length - 1))
+            x = min + Settings.prefs.horizontal_margin;
+        else
+            x = max - Settings.prefs.horizontal_margin - frame.width;
     } else if (frame.width > workArea.width * 0.9 - 2 * (Settings.prefs.horizontal_margin + Settings.prefs.window_gap)) {
         // Consider the window to be wide and center it
         x = min + Math.round((workArea.width - frame.width) / 2);
@@ -4546,7 +4559,8 @@ export function setFocusMode(mode, space) {
     const workArea = space.workArea();
     const selectedWin = space.selectedWindow;
     // if centre also center selectedWindow
-    if (mode === FocusModes.CENTER) {
+    switch (mode) {
+    case FocusModes.CENTER:
         if (selectedWin) {
             // check it closer to min or max of workArea
             const frame = selectedWin.get_frame_rect();
@@ -4559,6 +4573,11 @@ export function setFocusMode(mode, space) {
             }
             centerWindowHorizontally(selectedWin);
         }
+        break;
+    default:
+        // for other modes run a `layout` call to action the mode
+        space.layout();
+        break;
     }
 
     // if normal and has saved x position from previous

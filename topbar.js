@@ -279,6 +279,7 @@ export const FocusIcon = GObject.registerClass(
             const pather = relativePath => GLib.uri_resolve_relative(import.meta.url, relativePath, GLib.UriFlags.NONE);
             this.gIconDefault = Gio.icon_new_for_string(pather('./resources/focus-mode-default-symbolic.svg'));
             this.gIconCenter = Gio.icon_new_for_string(pather('./resources/focus-mode-center-symbolic.svg'));
+            this.gIconEdge = Gio.icon_new_for_string(pather('./resources/focus-mode-edge-symbolic.svg'));
 
             this._initToolTip();
             this.setMode();
@@ -335,9 +336,10 @@ Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
             };
             if (this.mode === Tiling.FocusModes.DEFAULT) {
                 markup('#6be67b', 'DEFAULT');
-            }
-            else if (this.mode === Tiling.FocusModes.CENTER) {
+            } else if (this.mode === Tiling.FocusModes.CENTER) {
                 markup('#6be6cb', 'CENTER');
+            } else if (this.mode === Tiling.FocusModes.EDGE) {
+                markup('#abe67b', 'EDGE');
             } else {
                 this.tooltip.set_text('');
             }
@@ -352,9 +354,10 @@ Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
             this.mode = mode;
             if (mode === Tiling.FocusModes.DEFAULT) {
                 this.gicon = this.gIconDefault;
-            }
-            else if (mode === Tiling.FocusModes.CENTER) {
+            } else if (mode === Tiling.FocusModes.CENTER) {
                 this.gicon = this.gIconCenter;
+            } else if (mode === Tiling.FocusModes.EDGE) {
+                this.gicon = this.gIconEdge;
             }
             this._updateTooltipText();
             return this;

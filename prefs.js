@@ -419,6 +419,7 @@ class SettingsWidget {
             {
                 'default': 0,
                 'center': 1,
+                'edge': 2,
             },
             'default',
             0);

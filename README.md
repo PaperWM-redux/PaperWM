@@ -360,7 +360,11 @@ _Note: PaperWM overrides the default Gnome Top Bar style to be completely transp
 
 ## Window Focus Mode ##
 
-[#482](https://github.com/paperwm/PaperWM/pull/482) added the concept of `window focus modes` to PaperWM.  A `focus mode` controls how windows are "focused".  For example, the `CENTER` focus mode causes all windows to be centered horizontally on selection, whereas the `DEFAULT` focus mode is the traditional PaperWM behaviour.
+[#482](https://github.com/paperwm/PaperWM/pull/482) added the concept of `window focus modes` to PaperWM.  A `focus mode` controls how windows are "focused".  The following modes are currently available:
+
+- the `DEFAULT` focus mode is the traditional PaperWM behaviour (no snapping, just free scrolling)
+- the `CENTER` focus mode causes all windows to be centered horizontally on selection
+- the `EDGE` focus mode causes windows to snap to the closest edge horizontally on selection (but while there is only one window, it is centered)
 
 Focus modes can be toggled by user-settable keybinding (default is `Super`+`Shift`+`c`), or by clicking the new focus-mode button in the topbar:
 

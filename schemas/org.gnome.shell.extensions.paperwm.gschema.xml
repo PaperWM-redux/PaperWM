@@ -476,7 +476,7 @@
 
     <key type="i" name="default-focus-mode">
         <default>0</default>
-        <summary>Set the default focus mode. 0:DEFAULT 1:CENTER</summary>
+        <summary>Set the default focus mode. 0:DEFAULT 1:CENTER 2:EDGE</summary>
     </key>
 
     <key type="i" name="open-window-position">
