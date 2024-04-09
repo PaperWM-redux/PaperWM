@@ -146,6 +146,7 @@ class SettingsWidget {
         };
 
         // General
+        intValueChanged('selection_size_spin', 'selection-border-size');
         intValueChanged('window_gap_spin', 'window-gap');
         intValueChanged('hmargin_spinner', 'horizontal-margin');
         intValueChanged('top_margin_spinner', 'vertical-margin');

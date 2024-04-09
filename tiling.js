@@ -109,28 +109,29 @@ export function enable(extension) {
     signals = new Utils.Signals();
     grabSignals = new Utils.Signals();
 
-    let setVerticalMargin = () => {
-        let vMargin = gsettings.get_int('vertical-margin');
-        let gap = gsettings.get_int('window-gap');
-        Settings.prefs.vertical_margin = Math.max(Math.round(gap / 2), vMargin);
-    };
-    setVerticalMargin();
-
     // setup actions on gap changes
-    let onWindowGapChanged = () => {
-        setVerticalMargin();
+    let marginsGapChanged = () => {
         Utils.timeout_remove(timerId);
         timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
             spaces.mru().forEach(space => {
-                space.layout();
+                space.layout(true, {
+                    callback: () => {
+                        const selected = spaces.activeSpace?.selectedWindow;
+                        allocateClone(selected);
+                    },
+                });
             });
             timerId = null;
             return false; // on return false destroys timeout
         });
     };
-    gsettings.connect('changed::vertical-margin', onWindowGapChanged);
-    gsettings.connect('changed::vertical-margin-bottom', onWindowGapChanged);
-    gsettings.connect('changed::window-gap', onWindowGapChanged);
+    gsettings.connect('changed::vertical-margin', marginsGapChanged);
+    gsettings.connect('changed::vertical-margin-bottom', marginsGapChanged);
+    gsettings.connect('changed::window-gap', marginsGapChanged);
+    gsettings.connect('changed::selection-border-size', () => {
+        const selected = spaces.activeSpace?.selectedWindow;
+        allocateClone(selected);
+    });
 
     backgroundGroup = Main.layoutManager._backgroundGroup;
 
@@ -354,7 +355,7 @@ export class Space extends Array {
         this.windowPositionBarBackdrop.height = Topbar.panelBox.height;
         this.setSpaceTopbarElementsVisible();
 
-        // apply default focus mode
+        // restore focus mode (or fallback to default)
         setFocusMode(focusMode ?? getDefaultFocusMode(), this);
 
         this.getWindows().forEach(w => {
@@ -3238,11 +3239,18 @@ export function allocateClone(metaWindow) {
         let selection = metaWindow.clone.first_child;
         let vMax = metaWindow.maximized_vertically;
         let hMax = metaWindow.maximized_horizontally;
-        let protrusion = Math.round(Settings.prefs.window_gap / 2);
+
+        const protrusion = Math.min(
+            Settings.prefs.selection_border_size,
+            Settings.prefs.vertical_margin,
+            Settings.prefs.window_gap
+        );
+
         selection.x = hMax ? 0 : -protrusion;
         selection.y = vMax ? 0 : -protrusion;
-        selection.set_size(frame.width + (hMax ? 0 : Settings.prefs.window_gap),
-            frame.height + (vMax ? 0 : Settings.prefs.window_gap));
+        selection.set_size(
+            frame.width + (hMax ? 0 : protrusion * 2),
+            frame.height + (vMax ? 0 : protrusion * 2));
     }
 }
 

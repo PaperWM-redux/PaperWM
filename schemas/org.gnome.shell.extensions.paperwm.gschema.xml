@@ -396,6 +396,11 @@
       <summary>Minimum gap between windows</summary>
     </key>
 
+    <key type="i" name="selection-border-size">
+      <default>10</default>
+      <summary>Sets the selected/focused window border size (px)</summary>
+    </key>
+
     <key type="d" name="minimap-scale">
       <default>0.15</default>
       <summary>Scale of mini mini-map tiles compared to their actual window size.</summary>
