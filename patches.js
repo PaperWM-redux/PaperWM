@@ -647,7 +647,6 @@ export function _checkWorkspaces() {
     for (i = 0; i < minimum; i++) {
         if (i >= emptyWorkspaces.length) {
             workspaceManager.append_new_workspace(false, global.get_current_time());
-            console.log(`created workspace`);
             emptyWorkspaces.push(true);
         }
     }
