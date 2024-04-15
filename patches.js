@@ -31,6 +31,13 @@ let pillSwipeTimer;
 export function enable(extension) {
     savedProps = new Map();
     gsettings = extension.getSettings();
+
+    // save the last display server used
+    gsettings.set_string(
+        'last-used-display-server',
+        Meta.is_wayland_compositor() ? "Wayland" : "Xorg"
+    );
+
     mutterSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
     signals = new Utils.Signals();
     setupSwipeTrackers();
@@ -576,8 +583,23 @@ export function _checkWorkspaces() {
     let workspaceManager = global.workspace_manager;
     let i;
     let emptyWorkspaces = [];
+    let minimum = Main.layoutManager.monitors.length + 1;
 
     if (!Meta.prefs_get_dynamic_workspaces()) {
+        // if less spaces than minimum, create!
+        let created = 0;
+        while (workspaceManager.nWorkspaces < minimum) {
+            workspaceManager.append_new_workspace(false, global.get_current_time());
+            created++;
+        }
+
+        if (created > 0) {
+            Main.notify(
+                `PaperWM (created ${created} workspaces)`,
+                `PaperWM requires a minimum of ${minimum} workspaces for you monitor configuration.`
+            );
+        }
+
         this._checkWorkspacesId = 0;
         return false;
     }
@@ -621,11 +643,11 @@ export function _checkWorkspaces() {
      * Set minimum workspaces to be max of num_monitors+1.
      * This ensures that we have at least one workspace at the end.
      */
-    let minimum = Main.layoutManager.monitors.length + 1;
     // Make sure we have a minimum number of spaces
     for (i = 0; i < minimum; i++) {
         if (i >= emptyWorkspaces.length) {
             workspaceManager.append_new_workspace(false, global.get_current_time());
+            console.log(`created workspace`);
             emptyWorkspaces.push(true);
         }
     }

@@ -2051,14 +2051,14 @@ export const Spaces = class Spaces extends Map {
         });
 
         this.signals.connect(display, 'window-created',
-            (display, metaWindow, user_data) => this.window_created(metaWindow));
+            (display, metaWindow, _user_data) => this.window_created(metaWindow));
 
         this.signals.connect(display, 'grab-op-begin', (display, mw, type) => grabBegin(mw, type));
         this.signals.connect(display, 'grab-op-end', (display, mw, type) => grabEnd(mw, type));
 
 
         this.signals.connect(global.window_manager, 'switch-workspace',
-            (wm, from, to, direction) => this.switchWorkspace(wm, from, to));
+            (wm, from, to, _direction) => this.switchWorkspace(wm, from, to));
 
         this.signals.connect(this.overrideSettings, 'changed::workspaces-only-on-primary', () => {
             displayConfig.upgradeGnomeMonitors(() => this.monitorsChanged());
@@ -2286,7 +2286,7 @@ export const Spaces = class Spaces extends Map {
         this.signals = null;
 
         // remove spaces
-        for (let [workspace, space] of this) {
+        for (let [, space] of this) {
             this.removeSpace(space);
         }
 
@@ -2312,7 +2312,7 @@ export const Spaces = class Spaces extends Map {
         }
 
         let nextUnusedWorkspaceIndex = nWorkspaces;
-        for (let [workspace, space] of this) {
+        for (let [, space] of this) {
             if (workspaces[space.workspace] !== true) {
                 this.removeSpace(space);
 
@@ -2329,6 +2329,20 @@ export const Spaces = class Spaces extends Map {
             space.settings.set_int('index', workspace.index());
             Meta.prefs_change_workspace_name(workspace.index(), space.name);
         }
+    }
+
+    /**
+     * Return true if there are less-than-or-equal-to spaces than monitors.
+     */
+    lteSpacesThanMonitors(onFalseCallback) {
+        const cb = onFalseCallback ?? function(_nSpaces, _nMonitors) {};
+        const nSpaces = [...this].length;
+        const nMonitors = Main.layoutManager.monitors.length;
+
+        if (nSpaces <= nMonitors) {
+            cb(nSpaces, nMonitors);
+        }
+        return nSpaces <= nMonitors;
     }
 
     switchMonitor(direction, move, warp = true) {
@@ -2372,11 +2386,90 @@ export const Spaces = class Spaces extends Map {
         }
     }
 
-    swapMonitor(direction, backDirection) {
+    moveToMonitor(direction, backDirection) {
         const monitor = focusMonitor();
         const i = display.get_monitor_neighbor_index(monitor.index, direction);
         if (i === -1)
             return;
+
+        if (this.lteSpacesThanMonitors(
+            (s, m) => Main.notify(
+                `PaperWM (cannot move workspace)`,
+                `You need at least ${m + 1} workspaces to complete this operation.`
+            )
+        )) {
+            return;
+        }
+
+        // check how many spaces are on this monitor
+        const numSpaces = [...this].filter(([_monitor, space]) => space?.monitor === monitor).length;
+        // if last space on this monitor, then swap
+        if (numSpaces <= 1) {
+            this.swapMonitor(direction, backDirection);
+            return;
+        }
+
+        let navFinish = () => Navigator.getNavigator().finish();
+        // action on current monitor
+        this.selectStackSpace(Meta.MotionDirection.DOWN);
+        navFinish();
+        // switch to target monitor and action mru
+        this.switchMonitor(direction, false, true);
+        this.selectStackSpace(Meta.MotionDirection.DOWN);
+        navFinish();
+
+        // /**
+        //  * Fullscreen monitor workaround.
+        //  * see https://github.com/paperwm/PaperWM/issues/638
+        //  */
+        // this.forEach(space => {
+        //     space.getWindows().filter(w => w.fullscreen).forEach(w => {
+        //         animateWindow(w);
+        //         w.unmake_fullscreen();
+        //         w.make_fullscreen();
+        //         showWindow(w);
+        //     });
+        // });
+
+        // ensure after swapping that the space elements are shown correctly
+        this.setSpaceTopbarElementsVisible(true, { force: true });
+    }
+
+    swapMonitor(direction, backDirection, options = {}) {
+        const checkIfLast = options.checkIfLast ?? true;
+        const warpIfLast = options.warpIfLast ?? true;
+
+        const monitor = focusMonitor();
+        const i = display.get_monitor_neighbor_index(monitor.index, direction);
+        if (i === -1)
+            return;
+
+        if (this.lteSpacesThanMonitors(
+            (s, m) => Main.notify(
+                `PaperWM (cannot swap workspaces)`,
+                `You need at least ${m + 1} workspaces to complete this operation.`
+            )
+        )) {
+            return;
+        }
+
+        if (checkIfLast) {
+            // check how many spaces are on this monitor
+            const numSpaces = [...this].filter(([_monitor, space]) => space?.monitor === monitor).length;
+            // if last space on this monitor, then swap
+            if (numSpaces <= 1) {
+                // focus other monitor for a switchback
+                this.switchMonitor(direction, false, false);
+                this.swapMonitor(backDirection, direction, {
+                    checkIfLast: false,
+                    warpIfLast: false,
+                });
+
+                // now switch monitor with warp since we back-flipped
+                this.switchMonitor(direction, false, true);
+                return;
+            }
+        }
 
         let navFinish = () => Navigator.getNavigator().finish();
         // action on current monitor
@@ -2391,20 +2484,20 @@ export const Spaces = class Spaces extends Map {
         this.selectStackSpace(Meta.MotionDirection.DOWN);
         navFinish();
         // final switch with warp
-        this.switchMonitor(direction);
+        this.switchMonitor(direction, false, warpIfLast);
 
-        /**
-         * Fullscreen monitor workaround.
-         * see https://github.com/paperwm/PaperWM/issues/638
-         */
-        this.forEach(space => {
-            space.getWindows().filter(w => w.fullscreen).forEach(w => {
-                animateWindow(w);
-                w.unmake_fullscreen();
-                w.make_fullscreen();
-                showWindow(w);
-            });
-        });
+        // /**
+        //  * Fullscreen monitor workaround.
+        //  * see https://github.com/paperwm/PaperWM/issues/638
+        //  */
+        // this.forEach(space => {
+        //     space.getWindows().filter(w => w.fullscreen).forEach(w => {
+        //         animateWindow(w);
+        //         w.unmake_fullscreen();
+        //         w.make_fullscreen();
+        //         showWindow(w);
+        //     });
+        // });
 
         // ensure after swapping that the space elements are shown correctly
         this.setSpaceTopbarElementsVisible(true, { force: true });
@@ -2484,11 +2577,18 @@ export const Spaces = class Spaces extends Map {
         let out = [];
         for (let i = 0; i < nWorkspaces; i++) {
             let space = this.spaceOf(workspaceManager.get_workspace_by_index(i));
-            if (space.monitor === monitor ||
-                (space.length === 0 && this.monitors.get(space.monitor) !== space)) {
-                // include workspace if it is the current one
-                // or if it is empty and not active on another monitor
+
+            if (space.monitor === monitor) {
                 out.push(space);
+                continue;
+            }
+
+            // include workspace if it is the current one
+            // or if it is empty and not active on another monitor
+            if (space.length === 0 &&
+                this.monitors.get(space.monitor) !== space) {
+                out.push(space);
+                continue;
             }
         }
         return out;
@@ -2852,7 +2952,7 @@ export const Spaces = class Spaces extends Map {
         }
 
         let visible = new Map();
-        for (let [monitor, space] of this.monitors) {
+        for (let [, space] of this.monitors) {
             visible.set(space, true);
         }
 

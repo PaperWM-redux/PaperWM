@@ -3,7 +3,6 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
 import {

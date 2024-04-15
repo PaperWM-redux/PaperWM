@@ -1827,58 +1827,60 @@
       </object>
     </child>
   </object>
-  <object class="GtkPopover" id="about_popover">
+  <object class="AdwPreferencesPage" id="about_page">
+    <property name="title" translatable="yes">About</property>
+    <property name="icon-name">help-about-symbolic</property>
     <child>
-      <object class="GtkBox" id="about">
-        <property name="focusable">False</property>
-        <property name="orientation">vertical</property>
-        <property name="margin-start">12</property>
-        <property name="margin-end">12</property>
-        <property name="margin-top">12</property>
-        <property name="margin-bottom">12</property>
-        <property name="spacing">6</property>
+      <object class="GtkScrolledWindow" id="about_scrolledWindow">
+        <property name="hscrollbar_policy">never</property>
         <child>
-          <object class="GtkImage" id="extension_logo">
+          <object class="GtkViewport">
             <property name="focusable">False</property>
-            <property name="file">resources/logo.png</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkLabel" id="extension_name">
-            <property name="focusable">False</property>
-            <property name="label" translatable="yes">&lt;b&gt;PaperWM&lt;/b&gt;</property>
-            <property name="use_markup">1</property>
-            <property name="justify">center</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkLabel" id="extension_version">
-            <property name="focusable">False</property>
-            <property name="label" translatable="yes">$VERSION</property>
-            <property name="use_markup">1</property>
-            <property name="justify">center</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkLabel" id="extension_description">
-            <property name="focusable">False</property>
-            <property name="label" translatable="yes">Tiled scrollable window manager extension for Gnome Shell</property>
-            <property name="justify">center</property>
-            <property name="wrap">1</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkLinkButton" id="homepage_link">
-            <property name="label" translatable="yes">Webpage</property>
-            <property name="receives_default">1</property>
-            <property name="uri">https://github.com/paperwm/PaperWM</property>
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkBox">
+                <property name="halign">center</property>
+                <property name="margin_start">36</property>
+                <property name="margin_end">36</property>
+                <property name="margin_top">16</property>
+                <property name="margin_bottom">16</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">12</property>
+                <property name="width_request">480</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="halign">start</property>
+                    <property name="hexpand">True</property>
+                    <property name="label" translatable="yes">PaperWM Version Information</property>
+                    <attributes>
+                      <attribute name="weight" value="bold" />
+                    </attributes>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTextView" id="about_version_textView">
+                    <property name="editable">False</property>
+                    <property name="vexpand">True</property>
+                    <property name="top-margin">6</property>
+                    <property name="right-margin">6</property>
+                    <property name="bottom-margin">6</property>
+                    <property name="left-margin">6</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="about_version_copy_button">
+                    <property name="label">Copy to Clipboard</property>
+                    <property name="tooltip_text" translatable="yes">Copies PaperWM version information to clipboard</property>
+                    <style>
+                      <class name="suggested-action" />
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkMenuButton" id="about_button">
-    <property name="popover">about_popover</property>
-    <property name="icon-name">dialog-information-symbolic</property>
   </object>
 </interface>

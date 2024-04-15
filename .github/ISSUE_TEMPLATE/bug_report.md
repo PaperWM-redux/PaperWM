@@ -24,14 +24,17 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **System information:**
-Please execute `./gather-system-info.sh` in you PaperWM clone and paste the output below.
+Please provide system information:
+- if you installed PaperWM via [extensions.gnome.org](https://extensions.gnome.org) please open PaperWM settings and select the `About` tab (last tab) and click the `Copy to Clipboard` button and paste the information below, or;
+
+- if you installed via source code, please execute `./gather-system-info.sh` in you PaperWM clone and paste the information below
 
 ```
 Example:
-Distribution: Arch Linux
-GNOME Shell 43.3
-PaperWM branch/tag: develop
-PaperWM commit: 223ff883bca9bf20dbf066eceda891cb6e8be931
+Distribution: Fedora Linux 40 (Workstation Edition)
+GNOME Shell: 46.0
+Display server: Wayland
+PaperWM version: 46.4.1
 Enabled extensions:
 - paperwm@paperwm-redux.github.com
 - switcher@landau.fi

@@ -108,6 +108,23 @@
         <summary>Switch to the below monitor</summary>
     </key>
 
+    <key type="as" name="move-space-monitor-right">
+        <default><![CDATA[['<Ctrl><Alt><Shift>Right']]]></default>
+        <summary>Move workspace to monitor on the right</summary>
+    </key>
+    <key type="as" name="move-space-monitor-left">
+        <default><![CDATA[['<Ctrl><Alt><Shift>Left']]]></default>
+        <summary>Move workspace to monitor on the left</summary>
+    </key>
+    <key type="as" name="move-space-monitor-above">
+        <default><![CDATA[['<Ctrl><Alt><Shift>Up']]]></default>
+        <summary>Move workspace to monitor above</summary>
+    </key>
+    <key type="as" name="move-space-monitor-below">
+        <default><![CDATA[['<Ctrl><Alt><Shift>Down']]]></default>
+        <summary>Move workspace to monitor below</summary>
+    </key>
+
     <key type="as" name="swap-monitor-right">
         <default><![CDATA[['<Super><Alt>Right']]]></default>
         <summary>Swap workspace with monitor to the right</summary>
@@ -353,6 +370,10 @@
   </schema>
 
   <schema id="org.gnome.shell.extensions.paperwm" path="/org/gnome/shell/extensions/paperwm/">
+    <key type="s" name="last-used-display-server">
+        <default>''</default>
+        <summary>Saves the last display server used for PaperWM (Wayland / X11)</summary>
+    </key>
 
     <!-- backup settings (used for restore) -->
     <key type="s" name="restore-keybinds">

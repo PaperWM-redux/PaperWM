@@ -124,6 +124,19 @@ export function setupActions(settings) {
         Tiling.spaces.switchMonitor(Meta.DisplayDirection.DOWN, false);
     }, { settings });
 
+    registerAction('move-space-monitor-right', () => {
+        Tiling.spaces.moveToMonitor(Meta.DisplayDirection.RIGHT, Meta.DisplayDirection.LEFT);
+    }, { settings });
+    registerAction('move-space-monitor-left', () => {
+        Tiling.spaces.moveToMonitor(Meta.DisplayDirection.LEFT, Meta.DisplayDirection.RIGHT);
+    }, { settings });
+    registerAction('move-space-monitor-above', () => {
+        Tiling.spaces.moveToMonitor(Meta.DisplayDirection.UP, Meta.DisplayDirection.DOWN);
+    }, { settings });
+    registerAction('move-space-monitor-below', () => {
+        Tiling.spaces.moveToMonitor(Meta.DisplayDirection.DOWN, Meta.DisplayDirection.UP);
+    }, { settings });
+
     registerAction('swap-monitor-right', () => {
         Tiling.spaces.swapMonitor(Meta.DisplayDirection.RIGHT, Meta.DisplayDirection.LEFT);
     }, { settings });
