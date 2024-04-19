@@ -13,7 +13,9 @@ import * as popupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Settings, Utils, Tiling, Navigator, Scratch } from './imports.js';
 import { Easer } from './utils.js';
 
+// eslint-disable-next-line no-undef
 const workspaceManager = global.workspace_manager;
+// eslint-disable-next-line no-undef
 const display = global.display;
 
 /*
@@ -22,21 +24,30 @@ const display = global.display;
 
 export let panelBox = Main.layoutManager.panelBox;
 
-// From https://developer.gnome.org/hig-book/unstable/design-color.html.en
-const colors = [
-    '#9DB8D2', '#7590AE', '#4B6983', '#314E6C',
-    '#EAE8E3', '#BAB5AB', '#807D74', '#565248',
-    '#C5D2C8', '#83A67F', '#5D7555', '#445632',
-    '#E0B6AF', '#C1665A', '#884631', '#663822',
-    '#ADA7C8', '#887FA3', '#625B81', '#494066',
-    '#EFE0CD', '#E0C39E', '#B39169', '#826647',
-    '#DF421E', '#990000', '#EED680', '#D1940C',
-    '#46A046', '#267726', '#ffffff', '#000000',
-];
-
-export let menu, focusButton;
+export let menu, focusButton, openPositionButton;
 let openPrefs, screenSignals, signals, gsettings;
+let activeOpenWindowPositions;
+
 export function enable (extension) {
+    activeOpenWindowPositions = [
+        {
+            mode: Settings.OpenWindowPositions.RIGHT,
+            active: () => Settings.prefs.open_window_position_option_right,
+        },
+        {
+            mode: Settings.OpenWindowPositions.LEFT,
+            active: () => Settings.prefs.open_window_position_option_left,
+        },
+        {
+            mode: Settings.OpenWindowPositions.START,
+            active: () => Settings.prefs.open_window_position_option_start,
+        },
+        {
+            mode: Settings.OpenWindowPositions.END,
+            active: () => Settings.prefs.open_window_position_option_end,
+        },
+    ];
+
     openPrefs = () => extension.openPreferences();
     gsettings = extension.getSettings();
 
@@ -47,9 +58,11 @@ export function enable (extension) {
 
     menu = new WorkspaceMenu();
     focusButton = new FocusButton();
+    openPositionButton = new OpenPositionButton();
 
     Main.panel.addToStatusArea('WorkspaceMenu', menu, 1, 'left');
     Main.panel.addToStatusArea('FocusButton', focusButton, 2, 'left');
+    Main.panel.addToStatusArea('OpenPositionButton', openPositionButton, 3, 'left');
 
     Tiling.spaces.forEach(s => {
         s.workspaceLabel.clutter_text.set_font_description(menu.label.clutter_text.font_description);
@@ -57,6 +70,7 @@ export function enable (extension) {
 
     fixWorkspaceIndicator();
     fixFocusModeIcon();
+    fixOpenPositionIcon();
     fixStyle();
 
     screenSignals.push(
@@ -70,7 +84,7 @@ export function enable (extension) {
         fixTopBar();
     });
 
-    signals.connect(gsettings, 'changed::disable-topbar-styling', (settings, key) => {
+    signals.connect(gsettings, 'changed::disable-topbar-styling', (_settings, _key) => {
         if (Settings.prefs.disable_topbar_styling) {
             removeStyles();
         }
@@ -79,19 +93,23 @@ export function enable (extension) {
         }
     });
 
-    signals.connect(gsettings, 'changed::show-window-position-bar', (settings, key) => {
+    signals.connect(gsettings, 'changed::show-window-position-bar', (_settings, _key) => {
         const spaces = Tiling.spaces;
         spaces.setSpaceTopbarElementsVisible();
         spaces.forEach(s => s.layout(false));
         spaces.showWindowPositionBarChanged();
     });
 
-    signals.connect(gsettings, 'changed::show-workspace-indicator', (settings, key) => {
+    signals.connect(gsettings, 'changed::show-workspace-indicator', (_settings, _key) => {
         fixWorkspaceIndicator();
     });
 
-    signals.connect(gsettings, 'changed::show-focus-mode-icon', (settings, key) => {
+    signals.connect(gsettings, 'changed::show-focus-mode-icon', (_settings, _key) => {
         fixFocusModeIcon();
+    });
+
+    signals.connect(gsettings, 'changed::show-open-position-icon', (_settings, _key) => {
+        fixOpenPositionIcon();
     });
 
     signals.connect(panelBox, 'show', () => {
@@ -113,6 +131,9 @@ export function disable() {
     signals = null;
     focusButton.destroy();
     focusButton = null;
+    openPositionButton.destroy();
+    openPositionButton = null;
+    activeOpenWindowPositions = null;
     menu.destroy();
     menu = null;
     Main.panel.statusArea.activities.show();
@@ -148,42 +169,6 @@ export function createButton(icon_name, accessible_name) {
     });
 }
 
-export function popupMenuEntryHelper(text) {
-    this.label = new St.Entry({
-        text,
-        // While not a search entry, this looks much better
-        style_class: 'search-entry',
-        name: 'workspace-name-entry',
-        track_hover: true,
-        reactive: true,
-        can_focus: true,
-    });
-
-    this.label.set_style(`
-      width: 232px;
-    `);
-
-    this.prevIcon = createButton('go-previous-symbolic', 'previous workspace setting');
-    this.nextIcon = createButton('go-next-symbolic', 'next workspace setting');
-
-    this.nextIcon.connect('clicked', () => {
-        let space = Tiling.cycleWorkspaceSettings(-1);
-        this.label.text = space.name;
-        this.nextIcon.grab_key_focus();
-    });
-    this.prevIcon.connect('clicked', () => {
-        let space = Tiling.cycleWorkspaceSettings(1);
-        this.label.text = space.name;
-        this.prevIcon.grab_key_focus();
-    });
-
-    this.actor.add_child(this.prevIcon);
-    this.actor.add_child(this.label);
-    this.actor.add_child(this.nextIcon);
-    this.actor.label_actor = this.label;
-    this.label.clutter_text.connect('activate', this.emit.bind(this, 'activate'));
-}
-
 // registerClass, breaking our somewhat lame registerClass polyfill.
 export const PopupMenuEntry = GObject.registerClass(
     class PopupMenuEntry extends popupMenu.PopupBaseMenuItem {
@@ -195,95 +180,129 @@ export const PopupMenuEntry = GObject.registerClass(
                 can_focus: false,
             });
 
-            popupMenuEntryHelper.call(this, text);
+            this.label = new St.Entry({
+                text,
+                // While not a search entry, this looks much better
+                style_class: 'search-entry',
+                name: 'workspace-name-entry',
+                track_hover: true,
+                reactive: true,
+                can_focus: true,
+            });
+
+            this.label.set_style(`
+              width: 232px;
+            `);
+
+            this.prevIcon = createButton('go-previous-symbolic', 'previous workspace setting');
+            this.nextIcon = createButton('go-next-symbolic', 'next workspace setting');
+
+            this.nextIcon.connect('clicked', () => {
+                let space = Tiling.cycleWorkspaceSettings(-1);
+                this.label.text = space.name;
+                this.nextIcon.grab_key_focus();
+            });
+            this.prevIcon.connect('clicked', () => {
+                let space = Tiling.cycleWorkspaceSettings(1);
+                this.label.text = space.name;
+                this.prevIcon.grab_key_focus();
+            });
+
+            this.actor.add_child(this.prevIcon);
+            this.actor.add_child(this.label);
+            this.actor.add_child(this.nextIcon);
+            this.actor.label_actor = this.label;
+            this.label.clutter_text.connect('activate', this.emit.bind(this, 'activate'));
         }
 
-        activate(event) {
+        activate(_event) {
             this.label.grab_key_focus();
         }
 
-        _onKeyFocusIn(actor) {
+        _onKeyFocusIn(_actor) {
             this.activate();
         }
     });
 
-class Color {
-    constructor(color, container) {
-        this.container = container;
-        this.color = color;
-        this.actor = new St.Button();
-        let icon = new St.Widget();
-        this.actor.add_child(icon);
-        icon.set_style(`background: ${color}`);
-        icon.set_size(20, 20);
-        icon.set_position(4, 4);
-        this.actor.set_size(24, 24);
+// class Color {
+//     constructor(color, container) {
+//         this.container = container;
+//         this.color = color;
+//         this.actor = new St.Button();
+//         let icon = new St.Widget();
+//         this.actor.add_child(icon);
+//         icon.set_style(`background: ${color}`);
+//         icon.set_size(20, 20);
+//         icon.set_position(4, 4);
+//         this.actor.set_size(24, 24);
 
-        this.actor.connect('clicked', this.clicked.bind(this));
-    }
+//         this.actor.connect('clicked', this.clicked.bind(this));
+//     }
 
-    clicked() {
-        this.container.entry.actor.text = this.color;
-        this.container.clicked();
-    }
-}
+//     clicked() {
+//         this.container.entry.actor.text = this.color;
+//         this.container.clicked();
+//     }
+// }
 
-class ColorEntry {
-    constructor(startColor) {
-        this.actor = new St.BoxLayout({ vertical: true });
+// class ColorEntry {
+//     constructor(startColor) {
+//         this.actor = new St.BoxLayout({ vertical: true });
 
-        let flowbox = new St.Widget();
-        let flowLayout = new Clutter.FlowLayout();
-        let flow = new St.Widget();
-        flowbox.add_child(flow);
-        flow.layout_manager = flowLayout;
-        flow.width = 24 * 16;
-        for (let c of colors) {
-            flow.add_child(new Color(c, this).actor);
-        }
+//         let flowbox = new St.Widget();
+//         let flowLayout = new Clutter.FlowLayout();
+//         let flow = new St.Widget();
+//         flowbox.add_child(flow);
+//         flow.layout_manager = flowLayout;
+//         flow.width = 24 * 16;
+//         for (let c of colors) {
+//             flow.add_child(new Color(c, this).actor);
+//         }
 
-        this.entry = new PopupMenuEntry(startColor, 'Set color');
-        this.entry.actor.clutter_text.connect(
-            'text-changed', () => {
-                let color = this.entry.actor.text;
-                this.entry.actor.set_style(`color: ${color}; `);
-            });
+//         this.entry = new PopupMenuEntry(startColor, 'Set color');
+//         this.entry.actor.clutter_text.connect(
+//             'text-changed', () => {
+//                 let color = this.entry.actor.text;
+//                 this.entry.actor.set_style(`color: ${color}; `);
+//             });
 
-        this.entry.button.connect('clicked', this.clicked.bind(this));
+//         this.entry.button.connect('clicked', this.clicked.bind(this));
 
-        this.actor.add_child(this.entry.actor);
-        this.actor.add_child(flowbox);
-    }
+//         this.actor.add_child(this.entry.actor);
+//         this.actor.add_child(flowbox);
+//     }
 
-    clicked() {
-        let space = Tiling.spaces.activeSpace;
-        let color = this.entry.actor.text;
-        space.settings.set_string('color', color);
-    }
-}
+//     clicked() {
+//         let space = Tiling.spaces.activeSpace;
+//         let color = this.entry.actor.text;
+//         space.settings.set_string('color', color);
+//     }
+// }
 
-/**
- * FocusMode icon class.
- */
-export const FocusIcon = GObject.registerClass(
-    class FocusIcon extends St.Icon {
-        _init(properties = {}, tooltip_parent, tooltip_x_point = 0) {
-            super._init(properties);
-            this.reactive = true;
+const BaseIcon = GObject.registerClass(
+    class BaseIcon extends St.Icon {
+        _init(
+            props = {},
+            tooltipProps = {},
+            init = () => {},
+            setMode = _mode => {},
+            updateTooltipText = () => {}
+        ) {
+            super._init(props);
 
             // allow custom x position for tooltip
-            this.tooltip_parent = tooltip_parent ?? this;
-            this.tooltip_x_point = tooltip_x_point;
+            this.tooltip_parent = tooltipProps?.parent ?? this;
+            this.tooltip_x_point = tooltipProps?.x_point ?? 0;
 
-            // read in focus icons from resources folder
-            const pather = relativePath => GLib.uri_resolve_relative(import.meta.url, relativePath, GLib.UriFlags.NONE);
-            this.gIconDefault = Gio.icon_new_for_string(pather('./resources/focus-mode-default-symbolic.svg'));
-            this.gIconCenter = Gio.icon_new_for_string(pather('./resources/focus-mode-center-symbolic.svg'));
-            this.gIconEdge = Gio.icon_new_for_string(pather('./resources/focus-mode-edge-symbolic.svg'));
+            // assign functions
+            this.setMode = setMode;
+            this.updateTooltipText = updateTooltipText;
 
-            this._initToolTip();
+            init();
+            this.initToolTip();
             this.setMode();
 
+            this.reactive = true;
             this.connect('button-press-event', () => {
                 if (this.clickFunction) {
                     this.clickFunction();
@@ -291,26 +310,17 @@ export const FocusIcon = GObject.registerClass(
             });
         }
 
-        /**
-         * Sets a function to be executed on click.
-         * @param {Function} clickFunction
-         * @returns
-         */
-        setClickFunction(clickFunction) {
-            this.clickFunction = clickFunction;
-            return this;
-        }
-
-        _initToolTip() {
+        initToolTip() {
             const tt = new St.Label({ style_class: 'focus-button-tooltip' });
             tt.hide();
+            // eslint-disable-next-line no-undef
             global.stage.add_child(tt);
-            this.tooltip_parent.connect('enter-event', icon => {
+            this.tooltip_parent.connect('enter-event', _icon => {
                 this._updateTooltipPosition(this.tooltip_x_point);
-                this._updateTooltipText();
+                this.updateTooltipText();
                 tt.show();
             });
-            this.tooltip_parent.connect('leave-event', (icon, event) => {
+            this.tooltip_parent.connect('leave-event', (_icon, _event) => {
                 if (!this.has_pointer) {
                     tt.hide();
                 }
@@ -327,39 +337,13 @@ export const FocusIcon = GObject.registerClass(
             this.tooltip.set_position(Math.max(0, point.x - 62), point.y + 34);
         }
 
-        _updateTooltipText() {
-            const markup = (color, mode) => {
-                this.tooltip.clutter_text
-                    .set_markup(
-                        `    <i>Window focus mode</i>
-Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
-            };
-            if (this.mode === Tiling.FocusModes.DEFAULT) {
-                markup('#6be67b', 'DEFAULT');
-            } else if (this.mode === Tiling.FocusModes.CENTER) {
-                markup('#6be6cb', 'CENTER');
-            } else if (this.mode === Tiling.FocusModes.EDGE) {
-                markup('#abe67b', 'EDGE');
-            } else {
-                this.tooltip.set_text('');
-            }
-        }
-
         /**
-         * Set the mode that this icon will display.
-         * @param {Tiling.FocusModes} mode
+         * Sets a function to be executed on click.
+         * @param {Function} clickFunction
+         * @returns
          */
-        setMode(mode) {
-            mode = mode ?? Tiling.FocusModes.DEFAULT;
-            this.mode = mode;
-            if (mode === Tiling.FocusModes.DEFAULT) {
-                this.gicon = this.gIconDefault;
-            } else if (mode === Tiling.FocusModes.CENTER) {
-                this.gicon = this.gIconCenter;
-            } else if (mode === Tiling.FocusModes.EDGE) {
-                this.gicon = this.gIconEdge;
-            }
-            this._updateTooltipText();
+        setClickFunction(clickFunction) {
+            this.clickFunction = clickFunction;
             return this;
         }
 
@@ -374,6 +358,68 @@ Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
     }
 );
 
+export const FocusIcon = GObject.registerClass(
+    class FocusIcon extends BaseIcon {
+        _init(
+            props = {},
+            tooltipProps = {}
+        ) {
+            super._init(
+                props,
+                tooltipProps,
+                () => {
+                    const pather = relativePath => GLib.uri_resolve_relative(import.meta.url, relativePath, GLib.UriFlags.NONE);
+                    this.gIconDefault = Gio.icon_new_for_string(pather('./resources/focus-mode-default-symbolic.svg'));
+                    this.gIconCenter = Gio.icon_new_for_string(pather('./resources/focus-mode-center-symbolic.svg'));
+                    this.gIconEdge = Gio.icon_new_for_string(pather('./resources/focus-mode-edge-symbolic.svg'));
+                },
+                mode => {
+                    mode = mode ?? Tiling.FocusModes.DEFAULT;
+                    this.mode = mode;
+
+                    switch (mode) {
+                    case Tiling.FocusModes.CENTER:
+                        this.gicon = this.gIconCenter;
+                        break;
+                    case Tiling.FocusModes.EDGE:
+                        this.gicon = this.gIconEdge;
+                        break;
+                    default:
+                        this.gicon = this.gIconDefault;
+                        break;
+                    }
+
+                    this.updateTooltipText();
+                    return this;
+                },
+                () => {
+                    const markup = (color, mode) => {
+                        this.tooltip.clutter_text
+                            .set_markup(
+                                `    <i>Window focus mode</i>
+Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
+                    };
+                    switch (this.mode) {
+                    case Tiling.FocusModes.DEFAULT:
+                        markup('#6be67b', 'DEFAULT');
+                        return;
+                    case Tiling.FocusModes.CENTER:
+                        markup('#6be6cb', 'CENTER');
+                        break;
+                    case Tiling.FocusModes.EDGE:
+                        markup('#abe67b', 'EDGE');
+                        break;
+                    default:
+                        markup('#6be67b', 'DEFAULT');
+                        this.tooltip.set_text('');
+                        break;
+                    }
+                }
+            );
+        }
+    }
+);
+
 export const FocusButton = GObject.registerClass(
     class FocusButton extends panelMenu.Button {
         _init() {
@@ -381,7 +427,7 @@ export const FocusButton = GObject.registerClass(
 
             this._icon = new FocusIcon({
                 style_class: 'system-status-icon focus-mode-button',
-            }, this, -10);
+            }, { parent: this, x_point: -10 });
 
             this.setFocusMode();
             this.add_child(this._icon);
@@ -399,7 +445,7 @@ export const FocusButton = GObject.registerClass(
             return this;
         }
 
-        _onClicked(actor, event) {
+        _onClicked(_actor, event) {
             if (Tiling.inPreview !== Tiling.PreviewMode.NONE || Main.overview.visible) {
                 return Clutter.EVENT_PROPAGATE;
             }
@@ -410,6 +456,137 @@ export const FocusButton = GObject.registerClass(
             }
 
             Tiling.switchToNextFocusMode();
+            return Clutter.EVENT_PROPAGATE;
+        }
+    }
+);
+
+export const OpenPositionIcon = GObject.registerClass(
+    class OpenPositionIcon extends BaseIcon {
+        _init(
+            props = {},
+            tooltipProps = {}
+        ) {
+            super._init(
+                props,
+                tooltipProps,
+                () => {
+                    const pather = relativePath => GLib.uri_resolve_relative(import.meta.url, relativePath, GLib.UriFlags.NONE);
+                    this.gIconRight = Gio.icon_new_for_string(pather('./resources/open-position-right-symbolic.svg'));
+                    this.gIconLeft = Gio.icon_new_for_string(pather('./resources/open-position-left-symbolic.svg'));
+                    this.gIconStart = Gio.icon_new_for_string(pather('./resources/open-position-start-symbolic.svg'));
+                    this.gIconEnd = Gio.icon_new_for_string(pather('./resources/open-position-end-symbolic.svg'));
+
+                    // connection to update based on gsetting
+                    signals.connect(gsettings, 'changed::open-window-position', (_settings, _key) => {
+                        const mode = Settings.prefs.open_window_position;
+                        this.setMode(mode);
+                    });
+                },
+                mode => {
+                    mode = mode ?? Settings.OpenWindowPositions.RIGHT;
+                    this.mode = mode;
+
+                    switch (mode) {
+                    case Settings.OpenWindowPositions.LEFT:
+                        this.gicon = this.gIconLeft;
+                        break;
+                    case Settings.OpenWindowPositions.START:
+                        this.gicon = this.gIconStart;
+                        break;
+                    case Settings.OpenWindowPositions.END:
+                        this.gicon = this.gIconEnd;
+                        break;
+                    default:
+                        this.gicon = this.gIconRight;
+                        break;
+                    }
+
+                    this.updateTooltipText();
+                    return this;
+                },
+                () => {
+                    const markup = mode => {
+                        this.tooltip.clutter_text
+                            .set_markup(
+                                ` <i>Open Window Position</i>
+Current position: <b>${mode}</b>`);
+                    };
+                    switch (this.mode) {
+                    case Settings.OpenWindowPositions.LEFT:
+                        markup('LEFT');
+                        return;
+                    case Settings.OpenWindowPositions.START:
+                        markup('START');
+                        break;
+                    case Settings.OpenWindowPositions.END:
+                        markup('END');
+                        break;
+                    default:
+                        markup('RIGHT');
+                        break;
+                    }
+                }
+            );
+        }
+    }
+);
+
+/**
+ * Switches to the next position for opening new windows.
+ */
+export function switchToNextOpenPositionMode() {
+    const activeModes = activeOpenWindowPositions
+        .filter(m => m.active())
+        .map(m => m.mode);
+
+    // if activeModes are empty, do nothing
+    if (activeModes.length <= 0) {
+        return;
+    }
+
+    const currIndex = activeModes.indexOf(Settings.prefs.open_window_position);
+    // if current mode is -1, then set the mode to the first option
+    let nextMode;
+    if (currIndex < 0) {
+        console.log(`couldn't find`);
+        nextMode = activeModes[0];
+    }
+    else {
+        nextMode = activeModes[(currIndex + 1) % activeModes.length];
+    }
+
+    // simply need to set gsettings and mode will be set and updated
+    gsettings.set_int('open-window-position', nextMode);
+}
+
+export const OpenPositionButton = GObject.registerClass(
+    class OpenPositionButton extends panelMenu.Button {
+        _init() {
+            super._init(0.0, 'OpenPosition');
+
+            this._icon = new OpenPositionIcon({
+                style_class: 'system-status-icon open-position-icon',
+            }, { parent: this, x_point: -10 });
+
+            this.setPositionMode(Settings.prefs.open_window_position);
+            this.add_child(this._icon);
+            this.connect('button-press-event', this._onClicked.bind(this));
+        }
+
+        /**
+         * Sets the position mode with this button.
+         * @param {*} mode
+         */
+        setPositionMode(mode) {
+            mode = mode ?? Settings.OpenWindowPositions.RIGHT;
+            this.positionMode = mode;
+            this._icon.setMode(mode);
+            return this;
+        }
+
+        _onClicked(_actor, _event) {
+            switchToNextOpenPositionMode();
             return Clutter.EVENT_PROPAGATE;
         }
     }
@@ -435,11 +612,12 @@ export const WorkspaceMenu = GObject.registerClass(
             this.add_child(this.label);
 
             this.signals = new Utils.Signals();
+            // eslint-disable-next-line no-undef
             this.signals.connect(global.window_manager,
                 'switch-workspace',
                 this.workspaceSwitched.bind(this));
 
-            this.menu.addMenuItem(new popupMenu.PopupSeparatorMenuItem(_('Workspace Settings')));
+            this.menu.addMenuItem(new popupMenu.PopupSeparatorMenuItem('Workspace Settings'));
 
             this.entry = new PopupMenuEntry(this.label.text);
             this.menu.addMenuItem(this.entry);
@@ -536,12 +714,13 @@ export const WorkspaceMenu = GObject.registerClass(
                     this._enterbox = new Clutter.Actor({ reactive: true });
                     Main.uiGroup.add_child(this._enterbox);
                     this._enterbox.set_position(panelBox.x, panelBox.y + panelBox.height + 20);
+                    // eslint-disable-next-line no-undef
                     this._enterbox.set_size(global.screen_width, global.screen_height);
                     Main.layoutManager.trackChrome(this._enterbox);
 
                     this._navigator.connect('destroy', this._finishWorkspaceSelect.bind(this));
 
-                    let id = this._enterbox.connect('enter-event', () => {
+                    this._enterbox.connect('enter-event', () => {
                         this._navigator.finish();
                     });
                 }
@@ -567,7 +746,7 @@ export const WorkspaceMenu = GObject.registerClass(
                 let spaces = Tiling.spaces;
                 let active = spaces.activeSpace;
 
-                let [dx, dy] = event.get_scroll_delta();
+                let [, dy] = event.get_scroll_delta();
                 dy *= active.height * 0.05;
                 let t = event.get_time();
                 let v = -dy / (this.time - t);
@@ -763,6 +942,10 @@ export function fixWorkspaceIndicator() {
 export function fixFocusModeIcon() {
     Settings.prefs.show_focus_mode_icon ? focusButton.show() : focusButton.hide();
     Tiling.spaces.forEach(s => s.showFocusModeIcon());
+}
+
+export function fixOpenPositionIcon() {
+    Settings.prefs.show_open_position_icon ? openPositionButton.show() : openPositionButton.hide();
 }
 
 /**

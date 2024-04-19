@@ -167,6 +167,11 @@
       <summary>Switch between Window Focus Modes (e.g. default, center)</summary>
     </key>
 
+    <key type="as" name="switch-open-window-position">
+      <default><![CDATA[['<Super><Shift>w']]]></default>
+      <summary>Switch between positions for creating windows (e.g. right, left)</summary>
+    </key>
+
     <key type="as" name="switch-next">
       <default><![CDATA[['<Super>period']]]></default>
       <summary>Switch to the next window</summary>
@@ -509,6 +514,18 @@
         <default>0</default>
         <summary>Sets the position to open a new window (e.g right of current window). RIGHT: 0, LEFT: 1, START: 2, END: 3</summary>
     </key>
+    <key type="b" name="open-window-position-option-right">
+        <default>true</default>
+    </key>
+    <key type="b" name="open-window-position-option-left">
+        <default>true</default>
+    </key>
+        <key type="b" name="open-window-position-option-start">
+        <default>false</default>
+    </key>
+        <key type="b" name="open-window-position-option-end">
+        <default>false</default>
+    </key>
 
     <key type="b" name="disable-topbar-styling">
         <default>false</default>
@@ -528,6 +545,11 @@
     <key type="b" name="show-focus-mode-icon">
         <default>true</default>
         <summary>Show the focus mode icon in the topbar</summary>
+    </key>
+
+    <key type="b" name="show-open-position-icon">
+        <default>true</default>
+        <summary>Show the open window position icon</summary>
     </key>
 
     <key type="d" name="animation-time">

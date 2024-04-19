@@ -44,6 +44,7 @@ const actions = {
         'live-alt-tab-scratch',
         'live-alt-tab-scratch-backward',
         'switch-focus-mode',
+        'switch-open-window-position',
         'move-left',
         'move-right',
         'move-up',

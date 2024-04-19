@@ -4730,7 +4730,7 @@ export function fitProportionally(values, targetSum) {
     let weights = values.map(v => v / sum);
 
     let fitted = Lib.zip(values, weights).map(
-        ([h, w]) => Math.round(targetSum * w)
+        ([_h, w]) => Math.round(targetSum * w)
     );
     let r = targetSum - Lib.sum(fitted);
     fitted[0] += r;

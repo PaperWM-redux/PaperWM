@@ -25,6 +25,12 @@ NOTE: please update `./config/users.css` with any new styles added here.
     background-color: transparent;
 }
 
+.open-position-icon {
+    icon-size: 22px;
+    padding: 0;
+    background-color: transparent;
+}
+
 .focus-button-tooltip {
     background-color: rgba(0, 0, 0, 0.8);
     padding: 8px;

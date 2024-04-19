@@ -37,11 +37,13 @@ export function enable(extension) {
         'swipe-sensitivity', 'swipe-friction', 'cycle-width-steps', 'cycle-height-steps',
         'maximize-width-percent', 'minimap-scale', 'edge-preview-scale',
         'window-switcher-preview-scale', 'winprops', 'show-workspace-indicator',
-        'show-window-position-bar', 'show-focus-mode-icon', 'disable-topbar-styling',
-        'default-focus-mode', 'gesture-enabled', 'gesture-horizontal-fingers',
-        'gesture-workspace-fingers', 'open-window-position',
+        'show-window-position-bar', 'show-focus-mode-icon', 'show-open-position-icon',
+        'disable-topbar-styling', 'default-focus-mode', 'gesture-enabled',
+        'gesture-horizontal-fingers', 'gesture-workspace-fingers', 'open-window-position',
         'overview-ensure-viewport-animation', 'overview-min-windows-per-row',
         'overview-max-window-scale', 'minimap-shade-opacity', 'selection-border-size',
+        'open-window-position-option-right', 'open-window-position-option-left',
+        'open-window-position-option-start', 'open-window-position-option-end',
     ]
         .forEach(k => setState(null, k));
     prefs.__defineGetter__("minimum_margin", () => {
