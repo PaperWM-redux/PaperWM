@@ -5,6 +5,7 @@ import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
+import Pango from 'gi://Pango';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as panelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -25,7 +26,7 @@ const display = global.display;
 export let panelBox = Main.layoutManager.panelBox;
 
 export let menu, focusButton, openPositionButton;
-let openPrefs, screenSignals, signals, gsettings;
+let openPrefs, screenSignals, signals, gsettings, ksettings;
 let activeOpenWindowPositions;
 
 export function enable (extension) {
@@ -50,6 +51,7 @@ export function enable (extension) {
 
     openPrefs = () => extension.openPreferences();
     gsettings = extension.getSettings();
+    ksettings = extension.getSettings('org.gnome.shell.extensions.paperwm.keybindings');
 
     screenSignals = [];
     signals = new Utils.Signals();
@@ -293,6 +295,7 @@ const BaseIcon = GObject.registerClass(
             // allow custom x position for tooltip
             this.tooltip_parent = tooltipProps?.parent ?? this;
             this.tooltip_x_point = tooltipProps?.x_point ?? 0;
+            this.mode;
 
             // assign functions
             this.setMode = setMode;
@@ -306,6 +309,7 @@ const BaseIcon = GObject.registerClass(
             this.connect('button-press-event', () => {
                 if (this.clickFunction) {
                     this.clickFunction();
+                    this.updateTooltipText();
                 }
             });
         }
@@ -319,6 +323,9 @@ const BaseIcon = GObject.registerClass(
                 this._updateTooltipPosition(this.tooltip_x_point);
                 this.updateTooltipText();
                 tt.show();
+
+                // alignment needs to be set after actor is shown
+                tt.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
             });
             this.tooltip_parent.connect('leave-event', (_icon, _event) => {
                 if (!this.has_pointer) {
@@ -355,6 +362,28 @@ const BaseIcon = GObject.registerClass(
             this.visible = visible;
             return this;
         }
+
+        /**
+         * Returns a nicely formatted keybind string from PaperWM
+         * @param {String} key
+         */
+        getKeybindString(key) {
+            // get first keybind
+            try {
+                let kb = ksettings.get_strv(key)[0]
+                    .replace(/[<>]/g, ' ')
+                    .trim()
+                    .replace(/\s+/g, '+');
+
+                // empty
+                if (kb.length === 0) {
+                    return '';
+                }
+                return `\n<i>(${kb})</i>`;
+            } catch (error) {
+                return '';
+            }
+        }
     }
 );
 
@@ -389,15 +418,14 @@ export const FocusIcon = GObject.registerClass(
                         break;
                     }
 
-                    this.updateTooltipText();
                     return this;
                 },
                 () => {
                     const markup = (color, mode) => {
-                        this.tooltip.clutter_text
-                            .set_markup(
-                                `    <i>Window focus mode</i>
-Current mode: <span foreground="${color}"><b>${mode}</b></span>`);
+                        const ct = this.tooltip.clutter_text;
+                        ct.set_markup(`<i>Window focus mode</i>
+Current mode: <span foreground="${color}"><b>${mode}</b></span>\
+${this.getKeybindString('switch-focus-mode')}`);
                     };
                     switch (this.mode) {
                     case Tiling.FocusModes.DEFAULT:
@@ -456,6 +484,7 @@ export const FocusButton = GObject.registerClass(
             }
 
             Tiling.switchToNextFocusMode();
+            this._icon.updateTooltipText();
             return Clutter.EVENT_PROPAGATE;
         }
     }
@@ -507,10 +536,10 @@ export const OpenPositionIcon = GObject.registerClass(
                 },
                 () => {
                     const markup = mode => {
-                        this.tooltip.clutter_text
-                            .set_markup(
-                                ` <i>Open Window Position</i>
-Current position: <b>${mode}</b>`);
+                        const ct = this.tooltip.clutter_text;
+                        ct.set_markup(`<i>Open Window Position</i>
+Current position: <b>${mode}</b>\
+${this.getKeybindString('switch-open-window-position')}`);
                     };
                     switch (this.mode) {
                     case Settings.OpenWindowPositions.LEFT:
