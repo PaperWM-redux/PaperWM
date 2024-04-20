@@ -147,6 +147,7 @@ export function disable() {
     panelBox.scale_y = 1;
     openPrefs = null;
     gsettings = null;
+    ksettings = null;
 }
 
 export function showWorkspaceMenu(show = false) {
