@@ -26,7 +26,7 @@ const display = global.display;
 export let panelBox = Main.layoutManager.panelBox;
 
 export let menu, focusButton, openPositionButton;
-let openPrefs, screenSignals, signals, gsettings, ksettings;
+let openPrefs, screenSignals, signals, gsettings;
 let activeOpenWindowPositions;
 
 export function enable (extension) {
@@ -51,7 +51,6 @@ export function enable (extension) {
 
     openPrefs = () => extension.openPreferences();
     gsettings = extension.getSettings();
-    ksettings = extension.getSettings('org.gnome.shell.extensions.paperwm.keybindings');
 
     screenSignals = [];
     signals = new Utils.Signals();
@@ -147,7 +146,6 @@ export function disable() {
     panelBox.scale_y = 1;
     openPrefs = null;
     gsettings = null;
-    ksettings = null;
 }
 
 export function showWorkspaceMenu(show = false) {
@@ -371,7 +369,7 @@ const BaseIcon = GObject.registerClass(
         getKeybindString(key) {
             // get first keybind
             try {
-                let kb = ksettings.get_strv(key)[0]
+                let kb = gsettings.get_child('keybindings').get_strv(key)[0]
                     .replace(/[<>]/g, ' ')
                     .trim()
                     .replace(/\s+/g, '+');
