@@ -735,130 +735,16 @@ export const WorkspaceMenu = GObject.registerClass(
 
             if (["NORMAL", "SCROLL"].includes(this.state) &&
                 type === Clutter.EventType.SCROLL) {
-                if (!this._navigator) {
-                    this.state = 'SCROLL';
-                    this._navigator = Navigator.getNavigator();
-                    Tiling.spaces.initWorkspaceSequence();
-                    this._enterbox = new Clutter.Actor({ reactive: true });
-                    Main.uiGroup.add_child(this._enterbox);
-                    this._enterbox.set_position(panelBox.x, panelBox.y + panelBox.height + 20);
-                    // eslint-disable-next-line no-undef
-                    this._enterbox.set_size(global.screen_width, global.screen_height);
-                    Main.layoutManager.trackChrome(this._enterbox);
-
-                    this._navigator.connect('destroy', this._finishWorkspaceSelect.bind(this));
-
-                    this._enterbox.connect('enter-event', () => {
-                        this._navigator.finish();
-                    });
-                }
-
-                let device = event.get_source_device();
-                // console.debug(`source: ${device.get_device_type()}`);
-                let direction = event.get_scroll_direction();
-                if (direction === Clutter.ScrollDirection.SMOOTH &&
-                    device.get_device_type() !== Clutter.InputDeviceType.POINTER_DEVICE) {
-                    this.state = 'SMOOTH';
-                }
-
-                if (direction === Clutter.ScrollDirection.DOWN) {
+                const direction = event.get_scroll_direction();
+                switch (direction) {
+                case Clutter.ScrollDirection.DOWN:
                     Tiling.spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
-                }
-                if (direction === Clutter.ScrollDirection.UP) {
+                    Navigator.getNavigator().finish();
+                    break;
+                case Clutter.ScrollDirection.UP:
                     Tiling.spaces.selectSequenceSpace(Meta.MotionDirection.UP);
-                }
-            }
-
-            if (this.state === 'SMOOTH' && type === Clutter.EventType.SCROLL &&
-                event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH) {
-                let spaces = Tiling.spaces;
-                let active = spaces.activeSpace;
-
-                let [, dy] = event.get_scroll_delta();
-                dy *= active.height * 0.05;
-                let t = event.get_time();
-                let v = -dy / (this.time - t);
-                // console.debug(`v ${v}, dy: ${dy}`);
-
-                let firstEvent = false;
-                if (!this.selected) {
-                    firstEvent = true;
-                    this.selected = spaces.selectedSpace;
-                }
-                let mode = Clutter.AnimationMode.EASE_IN_OUT_QUAD;
-                const StackPositions = Tiling.StackPositions;
-                const upEdge = 0.385 * active.height;
-                const downEdge = 0.60 * active.height;
-                if (dy > 0 &&
-                    this.selected !== active &&
-                    ((this.selected.actor.y > upEdge &&
-                        this.selected.actor.y - dy < upEdge)                        ||
-                        (this.selected.actor.y - dy < StackPositions.up * active.height))
-                ) {
-                    dy = 0;
-                    v = 0.1;
-                    spaces.selectSequenceSpace(Meta.MotionDirection.UP);
-                    this.selected = spaces.selectedSpace;
-                    Easer.removeEase(this.selected.actor);
-                    Easer.addEase(this.selected.actor,
-                        { scale_x: 0.9, scale_y: 0.9, time: Settings.prefs.animation_time, mode });
-                } else if (dy < 0 &&
-                    ((this.selected.actor.y < downEdge &&
-                        this.selected.actor.y - dy > downEdge)                        ||
-                        (this.selected.actor.y - dy > StackPositions.down * active.height))
-                ) {
-                    dy = 0;
-                    v = 0.1;
-                    spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
-                    this.selected = spaces.selectedSpace;
-                    Easer.removeEase(this.selected.actor);
-                    Easer.addEase(this.selected.actor,
-                        { scale_x: 0.9, scale_y: 0.9, time: Settings.prefs.animation_time, mode });
-                }
-
-                this.selected.actor.y -= dy;
-                if (this.selected === active) {
-                    let scale = 0.90;
-                    let s = 1 - (1 - scale) * (this.selected.actor.y / (0.1 * this.selected.height));
-                    s = Math.max(s, scale);
-                    Easer.removeEase(this.selected.actor);
-                    this.selected.actor.set_scale(s, s);
-                }
-
-                if (v === 0 && !firstEvent) {
-                    // console.debug(`finish: ${this.velocity}`);
-                    let test;
-                    if (this.velocity > 0)
-                        test = () => this.velocity > 0;
-                    else
-                        test = () => this.velocity < 0;
-
-                    let y = this.selected.actor.y;
-                    let friction = 0.5;
-                    while (test()) {
-                        let dy = this.velocity * 16;
-                        y -= dy;
-                        // console.debug(`calc target: ${dy} ${y} ${this.velocity}`);
-                        if (this.velocity > 0)
-                            this.velocity -= friction;
-                        else
-                            this.velocity += friction;
-                    }
-                    // console.debug(`zero: ${y/this.selected.height}`);
-
-                    if (this.selected === active && y <= 0.1 * this.selected.height) {
-                        this._navigator.finish();
-                        return;
-                    } else if (y > downEdge) {
-                        spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
-                        this.selected = spaces.selectedSpace;
-                    } else {
-                        spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
-                        spaces.selectSequenceSpace(Meta.MotionDirection.UP);
-                    }
-                } else {
-                    this.time = t;
-                    this.velocity = v;
+                    Navigator.getNavigator().finish();
+                    break;
                 }
             }
 

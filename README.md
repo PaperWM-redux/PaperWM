@@ -52,7 +52,7 @@ from the repository. The installer will create a link to the repo in
 ```
 > #### ➡️ You will need to restart Gnome shell after installing PaperWM, e.g. logout then login, or restart in place with an `alt-F2` and entering `r` (X11 only).
 >
-> After logging back in, you will can then enable PaperWM via the `Extensions` application, or by running the following command from the command-line:
+> After logging back in, you can then enable PaperWM via the `Extensions` application, or by running the following command from the command-line:
 >
 > ```bash
 > /usr/bin/gnome-extensions enable paperwm@paperwm-redux.github.com

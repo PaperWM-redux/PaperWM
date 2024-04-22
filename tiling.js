@@ -273,7 +273,20 @@ export class Space extends Array {
             name: 'panel',
             style_class: 'space-workspace-indicator',
         });
-        workspaceIndicator.connect('button-press-event', () => Main.overview.toggle());
+        signals.connect(workspaceIndicator, 'button-press-event', () => Main.overview.toggle());
+        signals.connect(workspaceIndicator, 'scroll-event', (_actor, event) => {
+            let direction = event.get_scroll_direction();
+            switch (direction) {
+            case Clutter.ScrollDirection.DOWN:
+                spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
+                Navigator.getNavigator().finish();
+                break;
+            case Clutter.ScrollDirection.UP:
+                spaces.selectSequenceSpace(Meta.MotionDirection.UP);
+                Navigator.getNavigator().finish();
+                break;
+            }
+        });
         this.workspaceIndicator = workspaceIndicator;
         let workspaceLabel = new St.Label();
         workspaceIndicator.add_child(workspaceLabel);
