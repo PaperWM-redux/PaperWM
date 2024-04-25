@@ -1995,6 +1995,7 @@ border-radius: ${borderWidth}px;
         this.getWindows().forEach(w => {
             removeHandlerFlags(w);
             delete w.pos_mismatch_count;
+            delete w.tiled_on_minimize;
         });
         this.signals.destroy();
         this.signals = null;
@@ -4315,9 +4316,22 @@ export function focus_handler(metaWindow) {
    Push all minimized windows to the scratch layer
  */
 export function minimizeHandler(metaWindow) {
-    console.debug('minimized', metaWindow?.title);
     if (metaWindow.minimized) {
+        console.debug('minimized', metaWindow?.title);
+        // check if was tiled
+        if (isTiled(metaWindow)) {
+            metaWindow.tiled_on_minimize = true;
+        }
         Scratch.makeScratch(metaWindow);
+    }
+    else {
+        console.debug('unminimized', metaWindow?.title);
+        if (metaWindow.tiled_on_minimize) {
+            delete metaWindow.tiled_on_minimize;
+            Utils.later_add(Meta.LaterType.IDLE, () => {
+                Scratch.unmakeScratch(metaWindow);
+            });
+        }
     }
 }
 
