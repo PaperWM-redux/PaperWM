@@ -215,26 +215,31 @@ export function monitorAtPoint(gx, gy) {
  * Returns the monitor current pointer coordinates.
  */
 export function monitorAtCurrentPoint() {
-    let [gx, gy, $] = getPointerCoords();
+    let [gx, gy] = getPointerCoords();
     return monitorAtPoint(gx, gy);
 }
 
 /**
  * Warps pointer to the center of a monitor.
  */
-export function warpPointerToMonitor(monitor, center = false) {
+export function warpPointerToMonitor(monitor, params = { center: false, ripple: true }) {
+    const center = params?.center ?? false;
+    const ripple = params?.ripple ?? true;
+
     // no need to warp if already on this monitor
     let currMonitor = monitorAtCurrentPoint();
     if (currMonitor === monitor) {
         return;
     }
 
-    let [x, y, _mods] = global.get_pointer();
+    let [x, y] = global.get_pointer();
     if (center) {
         x -= monitor.x;
         y -= monitor.y;
-        warpPointer(monitor.x + Math.floor(monitor.width / 2),
-            monitor.y + Math.floor(monitor.height / 2));
+        warpPointer(
+            monitor.x + Math.floor(monitor.width / 2),
+            monitor.y + Math.floor(monitor.height / 2),
+            ripple);
         return;
     }
 
@@ -242,7 +247,8 @@ export function warpPointerToMonitor(monitor, center = false) {
     let proportionalY = (y - currMonitor.y) / currMonitor.height;
     warpPointer(
         monitor.x + Math.floor(proportionalX * monitor.width),
-        monitor.y + Math.floor(proportionalY * monitor.height)
+        monitor.y + Math.floor(proportionalY * monitor.height),
+        ripple
     );
 }
 
@@ -262,7 +268,7 @@ export function warpPointer(x, y, ripple = true) {
  * Return current modifiers state (or'ed Clutter.ModifierType.*)
  */
 export function getModiferState() {
-    let [x, y, mods] = global.get_pointer();
+    let [, , mods] = global.get_pointer();
     return mods;
 }
 
@@ -294,6 +300,7 @@ export function mkFmt({ nameOnly } = { nameOnly: false }) {
         const extraStr = extra.join(" | ");
         let actorId = "";
         if (nameOnly) {
+            // eslint-disable-next-line no-nested-ternary, eqeqeq
             actorId = actor.name ? actor.name : prefix.length == 0 ? "" : "#";
         } else {
             actorId = actor.toString();
@@ -379,14 +386,7 @@ export function actor_reparent(actor, newParent) {
  * Backwards compatible later_add function.
  */
 export function later_add(...args) {
-    // Gnome 44+ uses global.compositor.get_laters()
-    if (global.compositor?.get_laters) {
-        global.compositor.get_laters().add(...args);
-    }
-    // Gnome 42, 43 used Meta.later_add
-    else if (Meta.later_add) {
-        Meta.later_add(...args);
-    }
+    global.compositor.get_laters().add(...args);
 }
 
 /**
@@ -563,10 +563,10 @@ export class DisplayConfig {
                 return;
             }
 
-            const [serial, monitors, logicalMonitors] = state;
+            const [, monitors] = state;
             for (const monitor of monitors) {
-                const [specs, modes, props] = monitor;
-                const [connector, vendor, product, serial] = specs;
+                const [specs] = monitor;
+                const [connector] = specs;
 
                 // upgrade gnome monitor object to add connector
                 let gnomeIndex = this.monitorManager.get_monitor_for_connector(connector);

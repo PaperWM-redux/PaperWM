@@ -7,8 +7,8 @@
 env:
   es2021: true
 extends: 'eslint:recommended'
-  #plugins:
-  #  - jsdoc
+# plugins:
+#    - jsdoc
 rules:
   array-bracket-newline:
     - error
@@ -66,20 +66,21 @@ rules:
       - 'CallExpression[callee.object.name=GObject][callee.property.name=registerClass] > ClassExpression:first-child'
       # Allow dedenting chained member expressions
       MemberExpression: 'off'
-  jsdoc/check-alignment: error
-  jsdoc/check-param-names: error
-  jsdoc/check-tag-names: error
-  jsdoc/check-types: error
-  jsdoc/implements-on-classes: error
-  jsdoc/tag-lines:
-    - error
-    - any
-    - startLines: 1
-  jsdoc/require-jsdoc: error
-  jsdoc/require-param: error
-  jsdoc/require-param-description: error
-  jsdoc/require-param-name: error
-  jsdoc/require-param-type: error
+  # # disabling jsdoc while as plugin jsdoc is disabled (have always had issues with plugin)
+  # jsdoc/check-alignment: error
+  # jsdoc/check-param-names: error
+  # jsdoc/check-tag-names: error
+  # jsdoc/check-types: error
+  # jsdoc/implements-on-classes: error
+  # jsdoc/tag-lines:
+  #   - error
+  #   - any
+  #   - startLines: 1
+  # jsdoc/require-jsdoc: error
+  # jsdoc/require-param: error
+  # jsdoc/require-param-description: error
+  # jsdoc/require-param-name: error
+  # jsdoc/require-param-type: error
   key-spacing:
     - error
     - beforeColon: false
@@ -259,6 +260,7 @@ globals:
   ARGV: readonly
   Debugger: readonly
   GIRepositoryGType: readonly
+  global: readonly
   globalThis: readonly
   imports: readonly
   Intl: readonly

@@ -4227,6 +4227,12 @@ export function focus_handler(metaWindow) {
     }
 
     let space = spaces.spaceOfWindow(metaWindow);
+
+    // if window is on another monitor then warp pointer there
+    if (Utils.monitorAtCurrentPoint() !== space.monitor) {
+        Utils.warpPointerToMonitor(space.monitor);
+    }
+
     if (metaWindow.fullscreen) {
         space.enableWindowPositionBar(false);
         space.setSpaceTopbarElementsVisible(false);

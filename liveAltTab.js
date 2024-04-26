@@ -6,13 +6,13 @@ import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 
-import { Settings, Keybindings, Tiling, Scratch } from './imports.js';
+import { Utils, Settings, Keybindings, Tiling, Scratch } from './imports.js';
 import { Easer } from './utils.js';
 
 let switcherSettings;
 export function enable() {
     switcherSettings = new Gio.Settings({
-        schema_id: 'org.gnome.shell.window-switcher',
+        schema_id: 'org.gnome.shell.app-switcher',
     });
 }
 
@@ -20,12 +20,12 @@ export function disable() {
     switcherSettings = null;
 }
 
-export function liveAltTab(meta_window, space, { display, screen, binding }) {
+export function liveAltTab(meta_window, space, { _display, _screen, binding }) {
     let tabPopup = new LiveAltTab(binding.is_reversed(), false);
     tabPopup.show(binding.is_reversed(), binding.get_name(), binding.get_mask());
 }
 
-export function liveAltTabScratch(meta_window, space, { display, screen, binding }) {
+export function liveAltTabScratch(meta_window, space, { _display, _screen, binding }) {
     let tabPopup = new LiveAltTab(binding.is_reversed(), true);
     tabPopup.show(binding.is_reversed(), binding.get_name(), binding.get_mask());
 }
@@ -154,6 +154,7 @@ export const LiveAltTab = GObject.registerClass(
             // accepted. This can cause _select to run on the item below the pointer
             // ensuring the wrong window.
             if (!this.was_accepted) {
+                // eslint-disable-next-line prefer-rest-params
                 super._itemEnteredHandler.apply(this, arguments);
             }
         }
