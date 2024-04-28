@@ -16,13 +16,13 @@ You can always view upstream submitted [issues and pull requests here](https://g
 
 [![project chat](https://img.shields.io/badge/PaperWM_Discussions-join_chat-brightgreen)](https://github.com/paperwm/PaperWM/discussions)
 
-PaperWM is a [Gnome Shell](https://wiki.gnome.org/Projects/GnomeShell) extension which provides scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
+PaperWM is a [Gnome Shell](https://www.gnome.org/) extension which provides scrollable tiling of windows and per monitor workspaces. It's inspired by paper notebooks and tiling window managers.
 
-Can be installed on Gnome Shells from 3.28 to 46 on X11 and wayland.
+While technically an [extension](https://extensions.gnome.org/about/) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
 
-_While PaperWM can be installed on a wide range of Gnome versions, new features aren't generally backported to previous versions.  Fixes may be backported on request (please submit a [new issue](https://github.com/paperwm/PaperWM/issues/new/choose) if you've identified a recent fix that should be backported and you can help with testing)._
+PaperWM aims to continually support [current stable](https://release.gnome.org/calendar/#branches) Gnome shell versions (currently Gnome 45 & Gnome 46).  Older versions of PaperWM can generally be installed on older Gnome Shell versions (see [Install via Source](#install-via-source) for more information on targeting an older/EOL Gnome version).
 
-While technically an [extension](https://wiki.gnome.org/Projects/GnomeShell/Extensions) it's to a large extent built on top of the Gnome desktop rather than merely extending it.
+New features and fixes aren't generally backported to older Gnome shell versions.  [Pull requests](https://github.com/paperwm/PaperWM/pulls) for fixes to older PaperWM versions (that run on previous Gnome versions) will be accepted if the submitter can help test and update related documentation.
 
 Have questions or comments?  Please ask on our [Github Discussions](https://github.com/paperwm/PaperWM/discussions) board.
 
@@ -36,21 +36,20 @@ _Note: the AUR package is git-based install package, so re-installing that packa
 
 ### Install from source
 
-Clone the repo and check out the branch supporting the Gnome Shell version you're running.
+Clone the repo and check out the branch for the Gnome Shell version you're running:
 
 - 45-46 (currently developed/supported): https://github.com/paperwm/PaperWM/tree/release
-- 42-44: https://github.com/paperwm/PaperWM/tree/gnome-44
-- 40-41: https://github.com/paperwm/PaperWM/tree/gnome-40
-- 3.28-3.38: https://github.com/paperwm/PaperWM/tree/gnome-3.38
+- 42-44 ([EOL](https://release.gnome.org/calendar/#releases)): https://github.com/paperwm/PaperWM/tree/gnome-44
+- 40-41 ([EOL](https://release.gnome.org/calendar/#releases)): https://github.com/paperwm/PaperWM/tree/gnome-40
+- 3.28-3.38 ([EOL](https://release.gnome.org/calendar/#releases)): https://github.com/paperwm/PaperWM/tree/gnome-3.38
 
-
-Then run the [`install.sh`](https://github.com/paperwm/PaperWM/blob/release/install.sh) script
+then run the [`install.sh`](https://github.com/paperwm/PaperWM/blob/release/install.sh) script
 from the repository. The installer will create a link to the repo in
 `~/.local/share/gnome-shell/extensions`. It will then ask if you want to enable PaperWM.
 ```bash
 ./install.sh # install, load and enable paperwm
 ```
-> #### ➡️ You will need to restart Gnome shell after installing PaperWM, e.g. logout then login, or restart in place with an `alt-F2` and entering `r` (X11 only).
+> #### ➡️ You'll need to restart Gnome shell after installing PaperWM, e.g. logout then login, or restart in place with an `alt-F2` and entering `r` (X11 only).
 >
 > After logging back in, you can then enable PaperWM via the `Extensions` application, or by running the following command from the command-line:
 >
@@ -60,7 +59,7 @@ from the repository. The installer will create a link to the repo in
 
 > if you have run into issues, delete any older `paperwm@...` symlinks from `~/.local/share/gnome-shell/extensions` and re-run the `install.sh` script.
 
-### Uninstall PaperWM
+#### Uninstall PaperWM (if installed via source)
 To uninstall simply run `./uninstall.sh`.
 
 Running the extension will automatically install a user config file as described in [User configuration & development](#user-configuration--development).
@@ -70,17 +69,17 @@ Users are enouraged to submit [issues](https://github.com/paperwm/PaperWM/issues
 
 > #### ➡️ Please ensure pull requests are based off, and submitted to, [develop](https://github.com/paperwm/PaperWM/tree/develop) branch.
 > 
-> Pull requests submitted to the `release` branch will not be accepted (but don't worry, if you accidentally submit a PR to the `release` branch we won't be mad, and will just ask you to change it).
+> Pull requests submitted to the `release` branch will not be accepted (but don't worry, if you accidentally submit a PR to the `release` branch, the target branch will automatically be changed to `develop` branch).
 
 ## Usage ##
 
-Most functionality is available using a mouse, eg. activating a window at the edge of the monitor by clicking on it. In wayland its possible to navigate with 3-finger swipes on the trackpad. But the primary focus is making an environment which works well with a keyboard.
+Most functionality is available using a mouse, eg. activating a window at the edge of the monitor by clicking on it. Wayland support gestures (See the [Touchpad Gestures](#touchpad-gestures) section). PaperWM is designed to work work well with keyboard + mouse, trackpads etc.
 
 Most keybindings start with the <kbd>Super</kbd> modifier (by default), which is usually the Windows key, or on mac keyboards it's the Command key. It's possible to modify the keyboard layout so that <kbd>Super</kbd> is switched with <kbd>Alt</kbd> making all the keybindings easier to reach. This can be done through Gnome Tweaks under `Keybard & Mouse` ⟶ `Additional Layout Options` ⟶ `Alt/Win key behavior` ⟶ `Left Alt is swapped with Left Win`.
 
 Most keybindings will grab the keyboard while <kbd>Super</kbd> is held down, only switching focus when <kbd>Super</kbd> is released. <kbd>Escape</kbd> will abort the navigation taking you back to the previously active window.
 
-Adding <kbd>Ctrl</kbd> to a keybinding will take the current window with you when navigating.
+All PaperWM keybinds can be changed (and disabled) via PaperWM extension settings.
 
 Window management and navigation is based around the three following concepts.
 
@@ -88,9 +87,9 @@ Window management and navigation is based around the three following concepts.
 
 ![The window tiling with the minimap shown](https://github.com/paperwm/media/blob/master/tiling.png)
 
-New windows are automatically tiled to the right of the active window, taking up as much height as possible. <kbd>Super</kbd><kbd>Return</kbd> will open a new window of the same type as the active window.
+New windows are automatically tiled to the right of the active window (see [here](#window-insertion-position-for-new-windows) for dynamically changing the insertion position of new windows), taking up as much height as possible. <kbd>Super</kbd><kbd>Return</kbd> will open a new window of the same type as the active window.
 
-Activating a window will ensure it's fully visible, scrolling the tiling if necessary. Pressing <kbd>Super</kbd><kbd>.</kbd> activates the window to the right. <kbd>Super</kbd><kbd>,</kbd> activates the window to the left. On a US keyboard these keys are intuitively marked by <kbd><</kbd> and <kbd>></kbd>, they are also ordered the same way on almost all keyboard layouts. Navigating around windows brings up the minimap as can be seen in the above screenshot. The minimap will stay visible as long as <kbd>Super</kbd> is continually being pressed.
+Activating a window will ensure it's fully visible, scrolling the tiling if necessary. By default, pressing <kbd>Super</kbd><kbd>.</kbd> activates the window to the right. <kbd>Super</kbd><kbd>,</kbd> activates the window to the left. On a US keyboard these keys are intuitively marked by <kbd><</kbd> and <kbd>></kbd>, they are also ordered the same way on almost all keyboard layouts. Navigating around windows brings up the minimap as can be seen in the above screenshot. The minimap will stay visible as long as <kbd>Super</kbd> is continually being pressed.
 
 Pressing <kbd>Super</kbd><kbd>I</kbd> will move the window to the right below the active window, tiling them vertically in a column. <kbd>Super</kbd><kbd>O</kbd> will do the opposite, pushing the bottom window out of the current column.
 
@@ -98,32 +97,38 @@ Swiping the trackpad horizontally with three fingers (only available in Wayland)
 
 <kbd>Alt</kbd><kbd>Tab</kbd> is of course also available.
 
-PaperWM doesn't handle attached modal dialogs very well, so it's best to turn it off in Gnome Tweaks (under Windows).
-
-| Keybindings                                                                                       |                                                             |
-| ------                                                                                            | -------                                                     |
-| <kbd>Super</kbd><kbd>,</kbd> or <kbd>Super</kbd><kbd>.</kbd>                                      | Activate the next or previous window                        |
-| <kbd>Super</kbd><kbd>Left</kbd> or <kbd>Super</kbd><kbd>Right</kbd>                               | Activate the window to the left or right                    |
-| <kbd>Super</kbd><kbd>Up</kbd> or <kbd>Super</kbd><kbd>Down</kbd>                                  | Activate the window above or below                          |
-| <kbd>Super</kbd><kbd>Home</kbd> or <kbd>Super</kbd><kbd>End</kbd>                                 | Activate the first or last window                           |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>,</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>.</kbd>        | Move the current window to the left or right                |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Left</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Right</kbd> | Move the current window to the left or right                |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Up</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Down</kbd>    | Move the current window up or down                          |
-| <kbd>Super</kbd><kbd>t</kbd>                                                                      | Take the window, placing it when finished navigating        |
-| <kbd>Super</kbd><kbd>Tab</kbd> or <kbd>Alt</kbd><kbd>Tab</kbd>                                    | Cycle through the most recently used windows                |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Tab</kbd> or <kbd>Alt</kbd><kbd>Shift</kbd><kbd>Tab</kbd>    | Cycle backwards through the most recently used windows      |
-| <kbd>Super</kbd><kbd>C</kbd>                                                                      | Center the active window horizontally                       |
-| <kbd>Super</kbd><kbd>R</kbd>                                                                      | Resize the window (cycles through useful widths)            |
+| Default `window` Keybindings                                                                      | _Can be changed in PaperWM extension settings_ | 
+| ------                                                                                            | ------- |
+| <kbd>Super</kbd><kbd>Return</kbd> or <kbd>Super</kbd><kbd>N</kbd>                                 | Open a new windows (of the current application) |
+| <kbd>Super</kbd><kbd>Backspace</kbd>                                                              | Close the active window |
+| <kbd>Super</kbd><kbd>.</kbd> or <kbd>Super</kbd><kbd>,</kbd>                                      | Switch to the next or previous window |
+| <kbd>Super</kbd><kbd>Left</kbd> or <kbd>Super</kbd><kbd>Right</kbd>                               | Activate the window to the left or right |
+| <kbd>Super</kbd><kbd>Up</kbd> or <kbd>Super</kbd><kbd>Down</kbd>                                  | Activate the window above or below |
+| <kbd>Super</kbd><kbd>Home</kbd> or <kbd>Super</kbd><kbd>End</kbd>                                 | Activate the first or last window |
+| <kbd>Super</kbd><kbd>Tab</kbd> or <kbd>Alt</kbd><kbd>Tab</kbd>                                    | Cycle through previously active windows |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>Tab</kbd> or <kbd>Shift</kbd><kbd>Alt</kbd><kbd>Tab</kbd>    | Cycle through previously active windows (backward order) |
+| <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Tab</kbd>                                                       | Cycle through previously active scratch windows | 
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Tab</kbd>                                       | Cycle through previously active scratch windows (backward order) |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>C</kbd>                                                      | Switch between window focus modes |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>W</kbd>                                                      | Switch between positions for creating new windows |
+| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>,</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>.</kbd>        | Move the current window to the left or right |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>,</kbd> or <kbd>Shift</kbd><kbd>Super</kbd><kbd>.</kbd>      | Move the current window to the left or right |
+| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Left</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Right</kbd> | Move the current window to the left or right |
+| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Up</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Down</kbd>    | Move the current window up or down |
+| <kbd>Super</kbd><kbd>I</kbd>                                                                      | Absorb the window to the right into the active column |
+| <kbd>Super</kbd><kbd>O</kbd>                                                                      | Expel the bottom window out to the right |
+| <kbd>Super</kbd><kbd>C</kbd>                                                                      | Center windows horizontally |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>F</kbd>                                                      | Toggle fullscreen |
+| <kbd>Super</kbd><kbd>F</kbd>                                                                      | Maximize the width of a window |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>+</kbd>                                                      | Increment window height (scratch or vertically tiled windows) |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>-</kbd>                                                      | Decrement window height (scratch or vertically tiled windows) |
+| <kbd>Super</kbd><kbd>+</kbd>                                                                      | Increment window width |
+| <kbd>Super</kbd><kbd>-</kbd>                                                                      | Decrement window width |
+| <kbd>Super</kbd><kbd>R</kbd>                                                                      | Resize the window (cycles through useful widths) |
 | <kbd>Super</kbd><kbd>Alt</kbd><kbd>R</kbd>                                                        | Resize the window (cycles backwards through useful widths)  |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>R</kbd>                                                      | Resize the window (cycles through useful heights)           |
+| <kbd>Super</kbd><kbd>Shift</kbd><kbd>R</kbd>                                                      | Resize the window (cycles through useful heights) |
 | <kbd>Super</kbd><kbd>Shift</kbd><kbd>Alt</kbd><kbd>R</kbd>                                        | Resize the window (cycles backwards through useful heights) |
-| <kbd>Super</kbd><kbd>F</kbd>                                                                      | Maximize the width of a window                              |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>F</kbd>                                                      | Toggle fullscreen                                           |
-| <kbd>Super</kbd><kbd>Return</kbd> or <kbd>Super</kbd><kbd>N</kbd>                                 | Create a new window from the active application             |
-| <kbd>Super</kbd><kbd>Backspace</kbd>                                                              | Close the active window                                     |
-| <kbd>Super</kbd><kbd>I</kbd>                                                                      | Absorb the window to the right into the active column       |
-| <kbd>Super</kbd><kbd>O</kbd>                                                                      | Expel the bottom window out to the right                    |
-
+| <kbd>Super</kbd><kbd>t</kbd>                                                                      | Take window(s) dropping when finished navigating |
 
 ### The workspace stack & monitors ###
 
@@ -141,33 +146,44 @@ Alternatively you can change these keybindings to "Switch to workspace below/abo
 
 The workspace name is shown in the top left corner replacing the `Activities` button adding a few enhancements. Scrolling on the name will let you browse the workspace stack just like <kbd>Super</kbd><kbd>Above_Tab</kbd>. Left clicking on the name opens Gnome overview, while right clicking the name lets you access and change the workspace name.
 
-> If you prefer to use another workspace indicator (or prefer none at all), you can hide this workspace name element from Gnome topbar by executing the following command from a terminal:
+> If you prefer to use Gnome workspace "pill", you can replace the workspace name element, and enable the Gnome pill from the `General` section of PaperWM preferences:
 >
-> ```
-> dconf write /org/gnome/shell/extensions/paperwm/show-workspace-indicator false
-> ```
+> <img alt="Using the Gnome pill" src="media/gnome-pill-option.png" width="560px">
 
 Swiping down on the trackpad vertically with three fingers will initiate the workspace stack, and then allow you navigate the workspace stack with 3-finger vertical swipes (only available in Wayland).  See the [Touchpad Gestures](#touchpad-gestures) section for more information on gesture support in PaperWM.
 
 There's a single scrollable tiling per workspace. Adding another monitor simply makes it possible to have another workspace visible. The workspace stack is shared among all the monitors, windows being resized vertically as necessary when workspace is displayed on another monitor.
 
-PaperWM currently works best using the workspaces span monitors preference, this can be turned on with Gnome Tweaks under Workspaces. If you want to use workspaces only on primary you need to place the secondary monitor either below or above the primary (with the best result having it below).
+| `workspace` keybindings                                                                           | _Can be changed in PaperWM extension settings_ | 
+| ------                                                                                            | ------- |
+| <kbd>Super</kbd><kbd>\`</kbd>                                                                     | Switch to previously active workspace |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>\`</kbd>                                                     | Switch to previously active workspace (backwards order) |
+| <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>\`</kbd>                                                      | Move active window to previously active workspace |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Super</kbd><kbd>\`</kbd>                                      | Move active window to previously active workspace (backwards order) |
+| <kbd>Super</kbd><kbd>PageUp</kbd>                                                                 | Switch to workspace above |
+| <kbd>Super</kbd><kbd>PageDown</kbd>                                                               | Switch to workspace below |
+| <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>PageUp</kbd>                                                  | Move active window one workspace up |
+| <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>PageDown</kbd>                                                | Move active window one workspace down |
 
-| Workspace Keybindings                                                  |                                                                                   |
-| ------                                                                 | -------                                                                           |
-| <kbd>Super</kbd><kbd>Above_Tab</kbd>                                   | Cycle through the most recently used workspaces                                   |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Above_Tab</kbd>                   | Cycle backwards through the most recently used workspaces                         |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Above_Tab</kbd>                    | Cycle through the most recently used, taking the active window with you           |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Above_Tab</kbd>    | Cycle backwards through the most recently used, taking the active window with you |
-| <kbd>Super</kbd><kbd>Page_Down</kbd>/<kbd>Page_Up</kbd>                | Cycle sequentially through workspaces (from current monitor only)                 |
-| *no default keybinding*                                                | Cycle sequentially through workspaces (from all monitors)                         |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Page_Down</kbd>/<kbd>Page_Up</kbd> | Cycle sequentially through workspaces, taking the active window with you          |
 
-
-| Monitor Keybindings                                                 |                                            |
-| ------                                                              | -------                                    |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Arrow_key</kbd>                | Select neighbouring monitor                |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Arrow_key</kbd> | Move active window to neighbouring monitor |
+| `monitor` keybindings                                                                             | _Can be changed in PaperWM extension settings_ | 
+| ------                                                                                            | ------- |
+| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Right</kbd>                                                  | Switch to the right monitor |
+| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Left</kbd>                                                   | Switch to the left monitor |
+| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Up</kbd>                                                     | Switch to the above monitor |
+| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Down</kbd>                                                   | Switch to the below monitor |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Right</kbd>                                     | Move workspace to monitor on the right |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Left</kbd>                                      | Move workspace to monitor on the left |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Up</kbd>                                        | Move workspace to monitor above |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Down</kbd>                                      | Move workspace to monitor below |
+| <kbd>Super</kbd><kbd>Alt</kbd><kbd>Right</kbd>                                                    | Swap workspace with monitor to the right |
+| <kbd>Super</kbd><kbd>Alt</kbd><kbd>Left</kbd>                                                     | Swap workspace with monitor to the left |
+| <kbd>Super</kbd><kbd>Alt</kbd><kbd>Up</kbd>                                                       | Swap workspace with monitor above |
+| <kbd>Super</kbd><kbd>Alt</kbd><kbd>Down</kbd>                                                     | Swap workspace with monitor below |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Super</kbd><kbd>Right</kbd>                                   | Move active window to the right monitor |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Super</kbd><kbd>Left</kbd>                                    | Move active window to the left monitor |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Super</kbd><kbd>Up</kbd>                                      | Move active window to the above monitor |
+| <kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>Super</kbd><kbd>Down</kbd>                                    | Move active window to the below monitor |
 
 ### Scratch layer ###
 
@@ -182,68 +198,67 @@ When the tiling is active <kbd>Super</kbd><kbd>Shift</kbd><kbd>Tab</kbd> selects
 
 <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Escape</kbd> will move a tiled window into the scratch layer or alternatively tile an already floating window. This functionality can also be accessed through the window context menu (<kbd>Alt</kbd><kbd>Space</kbd>).
 
-| Keybindings                                       |                                                                  |
-| ------                                            | -------                                                          |
-| <kbd>Super</kbd><kbd>Escape</kbd>                 | Toggle between showing and hiding the most recent scratch window |
-| <kbd>Super</kbd><kbd>Shift</kbd><kbd>Escape</kbd> | Toggle between showing and hiding the scratch windows            |
-| <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Escape</kbd>  | Toggle between floating and tiling the current window            |
-| <kbd>Super</kbd><kbd>Tab</kbd>                    | Cycle through the most recently used scratch windows             |
-| <kbd>Super</kbd><kbd>H</kbd>                      | Minimize the current window                                      |
+| `scratch` keybindings                                                                             | _Can be changed in PaperWM extension settings_ | 
+| ------                                                                                            | ------- |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>Escape</kbd>                                                 | Toggles the floating scratch layer |
+| <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>Escape</kbd>                                                  | Attach/detach active window into scratch layer |
+| <kbd>Super</kbd><kbd>Escape</kbd>                                                                 | Toggle the most recent scratch window |
 
-## User configuration & development ##
+## Touchpad Gestures  ###
 
-> ### ⚠️ Gnome 45 removed the ability to add external module files to the search path of extensions.  Hence, modifications to PaperWM via `user.js` is [not currently available in Gnome 45](https://github.com/paperwm/PaperWM/issues/576#issuecomment-1721315729).
->
-> `user.js` functionality is still available in PaperWM for previous Gnome shell versions.
+PaperWM implements the following touchpad gestures by default:
 
-A default user configuration, `user.js`, is created in `~/.config/paperwm/` with three functions `init`, `enable` and `disable`. `init` will run only once on startup, `enable` and `disable` will be run whenever extensions are being told to disable and enable themselves.
+Gesture                       | Action              
+------------------------------|------------------------------------------------------
+three-finger swipe up         | Gnome Overview
+three-finger swipe down       | PaperWM workspace stack view (see [here](#the-workspace-stack--monitors))
+three-finger swipe left/right | Moves tiling viewport (windows) left / right
 
-You can also supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). 
+PaperWM touchpad gesture behaviour can be modified via the `General` tab in PaperWM settings:
 
-You can reload the `user.css` by disabling (turning off) PaperWM and then re-enabling PaperWM (turning on), e.g via `Extensions` app, or by running `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that the latter approach will reload all other .css files (e.g. from other extensions) and `user.css` needs to already be loaded for this to work. So after initially creating the file you'll need to disable then enable PaperWM (or restart Gnome).
+<img alt="Touchpad gesture settings" src="media/gesture-settings.png" width="560px">
 
-We also made an emacs package, [gnome-shell-mode](https://github.com/paperwm/gnome-shell-mode), to make hacking on the config and writing extensions a more pleasant experience. To support this out of the box we also install a `metadata.json` so gnome-shell-mode will pick up the correct file context, giving you completion and interactive evaluation ala. looking glass straight in emacs.
+## Window Position Bar (colored bar segment in Top Bar) ##
 
-Pressing <kbd>Super</kbd><kbd>Insert</kbd> will assign the active window to a global variable `metaWindow`, its [window actor](https://developer.gnome.org/meta/stable/MetaWindowActor.html) to `actor`, its [workspace](https://developer.gnome.org/meta/stable/MetaWorkspace.html) to `workspace` and its PaperWM style workspace to `space`. This makes it easy to inspect state and test things out.
+[#476](https://github.com/paperwm/PaperWM/pull/476) added a coloured window position bar to the Gnome Top Bar.  This allows users to visually identify the current selected window position of the scrollable viewport in the current workspace.  This is demonstrated in the following video:
 
-### Using PaperWM extension settings (UI) to modify settings
-PaperWM provides an extension settings UI to modify many of PaperWM's more prevalent settings.  This is available in the `gnome-extensions` application.
+https://user-images.githubusercontent.com/30424662/221416159-464d7512-5174-451b-9035-0ee84f9eb4ec.mp4
 
-_Note: not all PaperWM user-configurable settings are available in the settings UI._
+The window position bar can be _disabled_ from `PaperWM extension settings`:
 
-### Using dconf-editor to modify settings
-You can use `dconf-editor` to view and modify all PaperWM user settings.  You can view all settings by executing the following command from a terminal:
+<img alt="Window indicator bar" src="media/window-indicator-bar.png" width="560px">
 
-```shell
-GSETTINGS_SCHEMA_DIR=$HOME/.local/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/schemas dconf-editor /org/gnome/shell/extensions/paperwm/
-```
+You can style both the coloured position bar and the dimmed "position bar backdrop" by overriding the `paperwm-window-position-bar` and `paperwm-window-position-bar-backdrop` CSS classes respectively (see `user.css` in [User configuration & development](#user-configuration--development) section for more information). The `paperwm-window-position-bar` will also inherit the selection color (same as window borders) from `tile-preview`.
 
-### PaperWM user-configurable settings _not_ available in settings UI
+_Note: PaperWM overrides the default Gnome Top Bar style to be completely transparent so that the dimmed `window-position-bar-backdrop` and `window-position-bar` elements are visible._
 
-Below is a list of user-configurable settings that are not exposed in the PaperWM settings UI.  These can be modified via [`dconf-editor`](#using-dconf-editor-to-modify-settings).
+## Window Focus Modes ##
 
-_Note: experimental, incomplete or deprecated settings may not be listed below._
+[#482](https://github.com/paperwm/PaperWM/pull/482) added the concept of `window focus modes` to PaperWM.  A `focus mode` controls how windows are "focused".  The following modes are currently available:
 
-<details><summary> <h4>Click to expand and see user-configurable properties</h3> </summary>
+- the `DEFAULT` focus mode is the traditional PaperWM behaviour (no snapping, just free scrolling)
+- the `CENTER` focus mode causes all windows to be centered horizontally on selection
+- the `EDGE` focus mode causes windows to snap to the closest edge horizontally on selection (but while there is only one window, it is centered)
 
-Setting | Description | Input Type | Default value
---------|-------------|------------|--------------
-<code>default&#8209;background</code>| Sets the (default) background used for PaperWM workspaces.  If set will use this background instead of colors defined in `workspace-colors`. | _absolute path_ | _empty_
+Focus modes can be toggled by user-settable keybinding (default is `Super`+`Shift`+`c`), or by clicking the new focus-mode button in the topbar:
 
-_Note: you can override this for individual workspaces in the settings UI._
+![Focus mode button](media/focus-mode-button.png)
 
-__Example:__
-```
-dconf write /org/gnome/shell/extensions/paperwm/default-background '"/home/user/Wallpaper/mars-sunset-2k.jpg"'
-```
+### Setting the default focus mode
 
-Setting | Description | Input Type | Default value
---------|-------------|------------|--------------
-<code>workspace&#8209;colors</code>  | Sets the workspace background color palette. | _String array of colors_ | `['#314E6C', '#565248', '#445632', '#663822', '#494066',   '#826647', '#4B6983', '#807D74', '#5D7555', '#884631', '#625B81', '#B39169', '#7590AE', '#BAB5AB', '#83A67F', '#C1665A', '#887FA3', '#E0C39E']`
+The default focus mode is the standard PaperWM focus mode (i.e. not centered).  This can be changed according to preference by changing the `Default focus mode` setting PaperWM settings.  
 
-</details>
+<img alt="Default focus mode" src="media/default-focus-mode.png" width="560px">
 
-### Setting window specific properties
+_Note: changing this setting during a PaperWM session will set all spaces to the new default focus mode._
+
+### Hiding the focus mode icon
+
+Users may also prefer to hide the focus mode icon.  You can do so from the `Avanced` tab in PaperWM extension settings:
+
+<img alt="Hiding the focus mode icon" src="media/hide-focus-mode-icon.png" width="560px">
+
+## Setting window specific properties
 
 It's possible to set window properties using simple rules that will be applied when placing new windows. Properties can applied to windows identified by their `wm_class` or `title`.  The following properties are currently supported:
 
@@ -268,123 +283,71 @@ You do this by using the special "match all" operator `*` as an input for `wm_cl
 
 This special operator is at a lower precedence, so more specific properties that match a window will always take precedence and be applied.
 
-### New Window Handlers
 
-> #### ⚠️ Gnome 45 removed the ability to add external module files to the search path of extensions.  Hence, the below `user.js` functionality is not currently available in Gnome 45.
+## Window insertion position for new windows
 
-If opening a new application window with <kbd>Super</kbd><kbd>Return</kbd> isn't doing exactly what you want, you can create custom functions to suit your needs. For example, you might want new emacs windows to open the current buffer by default, or have new terminals inherit the current directory.  To implement this, you can modify `user.js` as below (see [User configuration & development](#user-configuration--development) section):
+By default PaperWM inserts new windows to the right of the currently active window.  This behaviour can be changed via PaperWM settings, or with the `Open Window Position` button/icon (which is to the right of the focus mode icon):
 
-```javascript
-// -*- mode: gnome-shell -*-
-const Extension = imports.misc.extensionUtils.getCurrentExtension();
-const App = Extension.imports.app;
+![Open positions button](media/open-position-button.png)
 
-function enable() {
-    App.customHandlers['emacs.desktop'] =
-        () => imports.misc.util.spawn(['emacsclient', '--eval', '(make-frame)']);
-    App.customHandlers['org.gnome.Terminal.desktop'] =
-        (metaWindow, app) => app.action_group.activate_action(
-          "win.new-terminal",
-          new imports.gi.GLib.Variant("(ss)", ["window", "current"]));
-}
+There are several `positions` available for selection.  Namely, `right`, `left`, `start`, `end`.  The latter two will insert windows at the start or end of tiled windows container.
+
+Options for these settings, as well as settings to enable/disable specific positions in the `Open Window Position` buttong, are provided in PaperWM settings:
+
+https://github.com/paperwm/PaperWM/assets/30424662/4e4aa415-d047-44cb-b87a-d7e08493ecbd
+
+## Managing multiple windows at once
+
+PaperWM provides functionality to move, reorder, and close multiple windows at once.  These "multi-window" operations are initialised with the `Take the window, dropping it when finished navigating` keybind (default <kbd>Super</kbd><kbd>T</kbd>).
+
+This allows you to `take` multiple windows and temporarily store them in the bottom-right corner of the workspace.  The following operations are available while there are one or more windows "taken":
+
+_Selectively take/drop windows (pressing `spacebar` to drop the latest taken window):_
+
+https://github.com/paperwm/PaperWM/assets/30424662/f736adea-d5ba-4c9d-aca0-2f63322c08cb
+
+_Selecting all windows across spaces to close at once (pressing `q`):_
+
+https://github.com/paperwm/PaperWM/assets/30424662/e6596de2-f5f7-46af-b447-044f17f326f9
+
+_Reordring "taken" windows and selectively dropping them:_
+
+https://github.com/paperwm/PaperWM/assets/30424662/c7c50471-f352-4693-a936-2e711189f933
+
+## User configuration & development ##
+
+You can supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). 
+
+You can reload the `user.css` by disabling (turning off) PaperWM and then re-enabling PaperWM (turning on), e.g via `Extensions` app, or by running `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that the latter approach will reload all other .css files (e.g. from other extensions) and `user.css` needs to already be loaded for this to work. So after initially creating the file you'll need to disable then enable PaperWM (or restart Gnome).
+
+### Using PaperWM extension settings (UI) to modify settings
+PaperWM provides an extension settings UI to modify many of PaperWM's more prevalent settings.  This is available in the `gnome-extensions` application.
+
+### Using dconf-editor to modify settings
+You can also use `dconf-editor` to view and modify all PaperWM user settings.  You can view all settings by executing the following command from a terminal:
+
+```shell
+GSETTINGS_SCHEMA_DIR=$HOME/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/schemas dconf-editor /org/gnome/shell/extensions/paperwm/
 ```
 
-The app id of a window can be looked up like this:
+### PaperWM user-configurable settings _not_ available in settings UI
 
-```javascript
-let Shell = imports.gi.Shell;
-let Tracker = Shell.WindowTracker.get_default();
-let app = Tracker.get_window_app(metaWindow);
-app.get_id();
+Below is a list of user-configurable settings that are not exposed in the PaperWM settings UI.  These can be modified via [`dconf-editor`](#using-dconf-editor-to-modify-settings).
+
+Setting | Description | Input Type | Default value
+--------|-------------|------------|--------------
+<code>default&#8209;background</code>| Sets the (default) background used for PaperWM workspaces.  If set will use this background instead of colors defined in `workspace-colors`. | _absolute path_ | _empty_
+
+_Note: you can override this for individual workspaces in the settings UI._
+
+__Example:__
+```
+dconf write /org/gnome/shell/extensions/paperwm/default-background '"/home/user/Wallpaper/mars-sunset-2k.jpg"'
 ```
 
-Available application actions can be listed like this:
-```javascript
-app.action_group.list_actions();
-```
-
-### Keybindings
-
-Due to limitations in the mutter keybinding API we need to steal some built in Gnome Shell actions by default. Eg. the builtin action `switch-group` with the default <kbd>Super</kbd><kbd>Above_Tab</kbd> keybinding is overridden to cycle through recently used workspaces. If an overridden action has several keybindings they will unfortunately all activate the override, so for instance because <kbd>Alt</kbd><kbd>Above_Tab</kbd> is also bound to `switch-group` it will be overridden by default. If you want to avoid this, eg. you want <kbd>Alt</kbd><kbd>Tab</kbd> and <kbd>Alt</kbd><kbd>Above_Tab</kbd> to use the builtin behavior simply remove the conflicts (ie. <kbd>Super</kbd><kbd>Tab</kbd> and <kbd>Super</kbd><kbd>Above_Tab</kbd> and their <kbd>Shift</kbd> variants) from `/org/gnome/desktop/wm/keybindings/switch-group` (no restarts required).
-
-#### User defined keybindings
-
-> #### ⚠️ Gnome 45 removed the ability to add external module files to the search path of extensions.  Hence, the below `user.js` and `examples/keybindings.js` functionality is not currently available in Gnome 45.
-
-`Extension.imports.keybindings.bindkey(keystr, name, handler, options)`
-
-Option              | Values              | Meaning
---------------------|---------------------|------------------------------------
-`activeInNavigator` | `true`, **`false`** | The keybinding is active when the minimap/navigator is open
-`opensMinimap`    | `true`, **`false`** | The minimap will open when the keybinding is invoked
-
-```javascript
-let Keybindings = Extension.imports.keybindings;
-Keybindings.bindkey("<Super>j", "my-favorite-width",
-                    (metaWindow) => {
-                        let f = metaWindow.get_frame_rect();
-                        metaWindow.move_resize_frame(true, f.x, f.y, 500, f.h);
-                    },
-                    { activeInNavigator: true });
-```
-
-See `examples/keybindings.js` for more examples.
-
-### Touchpad Gestures  ###
-
-PaperWM implements the following touchpad gestures by default:
-
-Gesture                       | Action              
-------------------------------|------------------------------------------------------
-three-finger swipe up         | Gnome Overview #setting-window-specific-properties
-three-finger swipe down       | PaperWM workspace stack view (see [here](#the-workspace-stack--monitors))
-three-finger swipe left/right | Moves tiling viewport (windows) left / right
-
-PaperWM touchpad gesture behaviour can be modified via the `General` tab in PaperWM settings:
-
-<img alt="Touchpad gesture settings" src="media/gesture-settings.png" width="560px">
-
-## Window Position Bar (colored bar segment in Top Bar) ##
-
-[#476](https://github.com/paperwm/PaperWM/pull/476) added a coloured window position bar to the Gnome Top Bar.  This allows users to visually identify the current selected window position of the scrollable viewport in the current workspace.  This is demonstrated in the following video:
-
-https://user-images.githubusercontent.com/30424662/221416159-464d7512-5174-451b-9035-0ee84f9eb4ec.mp4
-
-The window position bar can be _disabled_ from `PaperWM extension settings`:
-
-<img alt="Window indicator bar" src="media/window-indicator-bar.png" width="560px">
-
-You can style both the coloured position bar and the dimmed "position bar backdrop" by overriding the `paperwm-window-position-bar` and `paperwm-window-position-bar-backdrop` CSS classes respectively (see `user.css` in [User configuration & development](#user-configuration--development) section for more information). The `paperwm-window-position-bar` will also inherit the selection color (same as window borders) from `tile-preview`.
-
-_Note: PaperWM overrides the default Gnome Top Bar style to be completely transparent so that the dimmed `window-position-bar-backdrop` and `window-position-bar` elements are visible._
-
-## Window Focus Mode ##
-
-[#482](https://github.com/paperwm/PaperWM/pull/482) added the concept of `window focus modes` to PaperWM.  A `focus mode` controls how windows are "focused".  The following modes are currently available:
-
-- the `DEFAULT` focus mode is the traditional PaperWM behaviour (no snapping, just free scrolling)
-- the `CENTER` focus mode causes all windows to be centered horizontally on selection
-- the `EDGE` focus mode causes windows to snap to the closest edge horizontally on selection (but while there is only one window, it is centered)
-
-Focus modes can be toggled by user-settable keybinding (default is `Super`+`Shift`+`c`), or by clicking the new focus-mode button in the topbar:
-
-![Focus mode button](media/focus-mode-button.png)
-
-### Setting the default focus mode
-
-The default focus mode is the standard PaperWM focus mode (i.e. not centered).  This can be changed according to preference by changing the `Default focus mode` setting PaperWM settings.  
-
-<img alt="Default focus mode" src="media/default-focus-mode.png" width="560px">
-
-_Note: changing this setting during a PaperWM session will set all spaces to the new default focus mode._
-
-### Hiding the focus mode icon
-
-Users may also prefer to hide the focus mode icon.  You can do so by executing the following command in a terminal:
-
-```
-dconf write /org/gnome/shell/extensions/paperwm/show-focus-mode-icon false
-```
+Setting | Description | Input Type | Default value
+--------|-------------|------------|--------------
+<code>workspace&#8209;colors</code>  | Sets the workspace background color palette. | _String array of colors_ | `['#314E6C', '#565248', '#445632', '#663822', '#494066',   '#826647', '#4B6983', '#807D74', '#5D7555', '#884631', '#625B81', '#B39169', '#7590AE', '#BAB5AB', '#83A67F', '#C1665A', '#887FA3', '#E0C39E']`
 
 ## Gnome TopBar opacity / styling ##
 
@@ -395,16 +358,6 @@ Users can disable PaperWM's ability to change TopBar styling from PaperWM settin
 <img alt="Enable TopBar Styling" src="media/topbar-styling.png" width="560px">
 
 _Note: several PaperWM specific features are dependent on changing the Gnome TopBar to function correctly.  If you choose to disable PaperWM's ability to change the TopBar styles (with the setting above), you may also want to disable the [Window Position Bar](#window-position-bar-colored-bar-segment-in-top-bar)_.
-
-## Fixed Window Size ##
-
-See the [Winprops](#setting-window-specific-properities) section for a way to set the default _width_ of windows identified by their `wm_class` window property.
-
-Currently it is not possible to have a default fixed window height.  Please check the following issues for progress / info:
-
-* https://github.com/paperwm/PaperWM/issues/304
-* https://github.com/paperwm/PaperWM/pull/189
-* https://github.com/paperwm/PaperWM/issues/311
 
 ## Recommended Gnome Shell Settings ##
 
