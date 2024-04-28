@@ -1271,7 +1271,7 @@ export class Space extends Array {
         }
     }
 
-    moveDone(focusedWindowCallback = focusedWindow => {}) {
+    moveDone(focusedWindowCallback = _focusedWindow => {}) {
         if (this.cloneContainer.x !== this.targetX ||
             this.actor.y !== 0 ||
             Navigator.navigating || inPreview ||
@@ -1785,7 +1785,7 @@ border-radius: ${borderWidth}px;
         this.actor.insert_child_below(this.background, null);
 
         this.signals.connect(this.background, 'button-press-event',
-            (actor, event) => {
+            (_actor, _event) => {
                 if (inGrab) {
                     return;
                 }
@@ -1806,7 +1806,7 @@ border-radius: ${borderWidth}px;
 
         // ensure this space is active if touched
         this.signals.connect(this.background, 'touch-event',
-            (actor, event) => {
+            (_actor, _event) => {
                 this.activateWithFocus(this.selectedWindow, false, false);
             });
 
@@ -1949,10 +1949,12 @@ border-radius: ${borderWidth}px;
                     if (metaWindow.get_compositor_private()) {
                         this.addWindow(metaWindow, i, j);
                     } else {
+                        // eslint-disable-next-line max-statements-per-line
                         column.splice(j, 1); j--;
                     }
                 }
                 if (column.length === 0) {
+                    // eslint-disable-next-line max-statements-per-line
                     prevSpace.splice(i, 1); i--;
                 }
             }
@@ -2264,7 +2266,7 @@ export const Spaces = class Spaces extends Map {
     _updateMonitor() {
         let monitorSpaces = this._getOrderedSpaces(this.selectedSpace.monitor);
         let currentMonitor = this.selectedSpace.monitor;
-        monitorSpaces.forEach((space, i) => {
+        monitorSpaces.forEach((space, _i) => {
             space.setMonitor(currentMonitor);
         });
     }
@@ -3117,7 +3119,7 @@ export const Spaces = class Spaces extends Map {
         seen.set(active, true);
 
         display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
-            .forEach((metaWindow, i) => {
+            .forEach((metaWindow, _i) => {
                 let workspace = metaWindow.get_workspace();
                 if (!seen.get(workspace)) {
                     out.push(this.get(workspace));
@@ -3234,7 +3236,7 @@ export function hasTransient(metaWindow) {
         return false;
     }
     let hasTransient = false;
-    metaWindow.foreach_transient(t => {
+    metaWindow.foreach_transient(_t => {
         hasTransient = true;
     });
 
@@ -4172,7 +4174,7 @@ export function grabBegin(metaWindow, type) {
     }
 }
 
-export function grabEnd(metaWindow, type) {
+export function grabEnd(_metaWindow, _type) {
     if (!inGrab || inGrab.dnd || inGrab.grabbed)
         return;
 
@@ -4229,7 +4231,8 @@ export function focus_handler(metaWindow) {
     let space = spaces.spaceOfWindow(metaWindow);
 
     // if window is on another monitor then warp pointer there
-    if (Utils.monitorAtCurrentPoint() !== space.monitor) {
+    if (!Main.overview.visible &&
+        Utils.monitorAtCurrentPoint() !== space.monitor) {
         Utils.warpPointerToMonitor(space.monitor);
     }
 
@@ -4722,13 +4725,16 @@ export function setFocusMode(mode, space) {
     }
 
     // if normal and has saved x position from previous
+    // eslint-disable-next-line eqeqeq
     if (mode === FocusModes.DEFAULT && space.unfocusXPosition != null) {
         // if window is first, move to left edge
         let position;
+        // eslint-disable-next-line eqeqeq
         if (space.indexOf(selectedWin) == 0) {
             position = 0;
         }
         // if windows is last, move to right edge
+        // eslint-disable-next-line eqeqeq
         else if (space.indexOf(selectedWin) == space.length - 1) {
             position = workArea.width;
         }
@@ -4921,19 +4927,19 @@ export function barfThis(metaWindow) {
     });
 }
 
-export function selectPreviousSpace(mw, space) {
+export function selectPreviousSpace(_mw, _space) {
     spaces.selectStackSpace(Meta.MotionDirection.DOWN);
 }
 
-export function selectPreviousSpaceBackwards(mw, space) {
+export function selectPreviousSpaceBackwards(_mw, _space) {
     spaces.selectStackSpace(Meta.MotionDirection.UP);
 }
 
-export function movePreviousSpace(mw, space) {
+export function movePreviousSpace(_mw, _space) {
     spaces.selectStackSpace(Meta.MotionDirection.DOWN, true);
 }
 
-export function movePreviousSpaceBackwards(mw, space) {
+export function movePreviousSpaceBackwards(_mw, _space) {
     spaces.selectStackSpace(Meta.MotionDirection.UP, true);
 }
 
@@ -4945,11 +4951,11 @@ export function selectUpSpace(mw, space, fromAllMonitors) {
     spaces.selectSequenceSpace(Meta.MotionDirection.UP, false, fromAllMonitors);
 }
 
-export function moveDownSpace(mw, space) {
+export function moveDownSpace(_mw, _space) {
     spaces.selectSequenceSpace(Meta.MotionDirection.DOWN, true);
 }
 
-export function moveUpSpace(mw, space) {
+export function moveUpSpace(_mw, _space) {
     spaces.selectSequenceSpace(Meta.MotionDirection.UP, true);
 }
 
@@ -5026,7 +5032,7 @@ export function takeWindow(metaWindow, space, params) {
 
         // get the action dispatcher signal to connect to
         Navigator.getActionDispatcher(Clutter.GrabState.KEYBOARD)
-            .addKeypressCallback((modmask, keysym, event) => {
+            .addKeypressCallback((modmask, keysym, _event) => {
                 switch (keysym) {
                 case Clutter.KEY_space: {
                     // remove the last window you got
