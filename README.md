@@ -316,7 +316,7 @@ https://github.com/paperwm/PaperWM/assets/30424662/c7c50471-f352-4693-a936-2e711
 
 ## User configuration & development ##
 
-You can supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm-redux.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). 
+You can supply a custom `user.css` in `~/.config/paperwm/`. This user stylesheet can override the default styles of paperwm (e.g. from `~/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css` or `/usr/share/gnome-shell/extensions/paperwm@paperwm.github.com/user.css`), gnome or even other extensions. The same rules as for CSS in the browser apply (i.e. CSS rules are additive). 
 
 You can reload the `user.css` by disabling (turning off) PaperWM and then re-enabling PaperWM (turning on), e.g via `Extensions` app, or by running `Main.loadTheme()` in looking glass (i.e. <kbd>Alt</kbd><kbd>F2</kbd> `lg` <kbd>Return</kbd>). Note that the latter approach will reload all other .css files (e.g. from other extensions) and `user.css` needs to already be loaded for this to work. So after initially creating the file you'll need to disable then enable PaperWM (or restart Gnome).
 

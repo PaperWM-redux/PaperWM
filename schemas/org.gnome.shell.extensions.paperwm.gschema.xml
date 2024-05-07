@@ -198,45 +198,53 @@
     </key>
 
     <key type="as" name="switch-next-loop">
-      <default><![CDATA[['']]]></default>
+      <default><![CDATA[[]]]></default>
       <summary>Switch to the next window (with wrap-around)</summary>
     </key>
     <key type="as" name="switch-previous-loop">
-      <default><![CDATA[['']]]></default>
+      <default><![CDATA[[]]]></default>
       <summary>Switch to the previous window (with wrap-around)</summary>
     </key>
     <key type="as" name="switch-right-loop">
-        <default><![CDATA[['']]]></default>
+        <default><![CDATA[[]]]></default>
         <summary>Switch to the right window (with wrap-around)</summary>
     </key>
     <key type="as" name="switch-left-loop">
-        <default><![CDATA[['']]]></default>
+        <default><![CDATA[[]]]></default>
         <summary>Switch to the left window (with wrap-around)</summary>
     </key>
     <key type="as" name="switch-up-loop">
-        <default><![CDATA[['']]]></default>
+        <default><![CDATA[[]]]></default>
         <summary>Switch to the window above (with wrap-around)</summary>
     </key>
     <key type="as" name="switch-down-loop">
-        <default><![CDATA[['']]]></default>
+        <default><![CDATA[[]]]></default>
         <summary>Switch to the window below (with wrap-around)</summary>
     </key>
 
     <key type="as" name="switch-global-right">
         <default><![CDATA[[]]]></default>
-        <summary>Switch to the right window (no monitor boundary)</summary>
+        <summary>Switch to window or monitor to the right</summary>
     </key>
     <key type="as" name="switch-global-left">
         <default><![CDATA[[]]]></default>
-        <summary>Switch to the left window (no monitor boundary)</summary>
+        <summary>Switch to window or monitor to the left</summary>
     </key>
     <key type="as" name="switch-global-up">
         <default><![CDATA[[]]]></default>
-        <summary>Switch to the above window (no monitor boundary)</summary>
+        <summary>Switch to window or monitor above</summary>
     </key>
     <key type="as" name="switch-global-down">
         <default><![CDATA[[]]]></default>
-        <summary>Switch to the below window (no monitor boundary)</summary>
+        <summary>Switch to window or monitor below</summary>
+    </key>
+    <key type="as" name="switch-up-or-else-workspace">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch window or workspace above</summary>
+    </key>
+    <key type="as" name="switch-down-or-else-workspace">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to window or workspace below</summary>
     </key>
 
     <key type="as" name="switch-first">

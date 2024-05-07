@@ -37,6 +37,8 @@ const actions = {
         'switch-global-right',
         'switch-global-up',
         'switch-global-down',
+        'switch-up-or-else-workspace',
+        'switch-down-or-else-workspace',
         'switch-first',
         'switch-last',
         'live-alt-tab',

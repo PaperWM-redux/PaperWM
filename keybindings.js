@@ -189,6 +189,9 @@ export function setupActions(settings) {
     registerMinimapAction("switch-up-loop", (mw, space) => space.switchUp(true));
     registerMinimapAction("switch-down-loop", (mw, space) => space.switchDown(true));
 
+    registerNavigatorAction("switch-up-or-else-workspace", Tiling.switchUpOrElseWorkspace);
+    registerNavigatorAction("switch-down-or-else-workspace", Tiling.switchDownOrElseWorkspace);
+
     registerMinimapAction("switch-first", Tiling.activateFirstWindow);
     registerMinimapAction("switch-last", Tiling.activateLastWindow);
 

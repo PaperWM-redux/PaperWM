@@ -1058,15 +1058,15 @@ export class Space extends Array {
         return true;
     }
 
-    switchLeft(loop) { this.switch(Meta.MotionDirection.LEFT, loop); }
-    switchRight(loop) { this.switch(Meta.MotionDirection.RIGHT, loop); }
-    switchUp(loop) { this.switch(Meta.MotionDirection.UP, loop); }
-    switchDown(loop) { this.switch(Meta.MotionDirection.DOWN, loop); }
+    switchLeft(loop) { return this.switch(Meta.MotionDirection.LEFT, loop); }
+    switchRight(loop) { return this.switch(Meta.MotionDirection.RIGHT, loop); }
+    switchUp(loop) { return this.switch(Meta.MotionDirection.UP, loop); }
+    switchDown(loop) { return this.switch(Meta.MotionDirection.DOWN, loop); }
     switch(direction, loop) {
         let space = this;
         let index = space.selectedIndex();
         if (index === -1) {
-            return;
+            return false;
         }
         let row = space[index].indexOf(space.selectedWindow);
         switch (direction) {
@@ -1085,7 +1085,7 @@ export class Space extends Array {
                 index = 0;
             }
         } else if (index < 0 || index >= space.length) {
-            return;
+            return false;
         }
 
         let column = space[index];
@@ -1110,11 +1110,13 @@ export class Space extends Array {
                 row = 0;
             }
         } else if (row < 0 || row >= column.length) {
-            return;
+            return false;
         }
 
         let metaWindow = space.getWindow(index, row);
         ensureViewport(metaWindow, space);
+
+        return true;
     }
 
     switchGlobalLeft() { this.switchGlobal(Meta.MotionDirection.LEFT); }
@@ -4949,6 +4951,16 @@ export function selectDownSpace(mw, space, fromAllMonitors) {
 
 export function selectUpSpace(mw, space, fromAllMonitors) {
     spaces.selectSequenceSpace(Meta.MotionDirection.UP, false, fromAllMonitors);
+}
+
+export function switchDownOrElseWorkspace(mw, space) {
+    if (!space.switchDown(false))
+        selectDownSpace(mw, space, false);
+}
+
+export function switchUpOrElseWorkspace(mw, space) {
+    if (!space.switchUp(false))
+        selectUpSpace(mw, space, false);
 }
 
 export function moveDownSpace(_mw, _space) {
