@@ -7,7 +7,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
 
-import { Settings, Utils, Tiling, Navigator, Grab, Scratch } from './imports.js';
+import { Settings, Utils, Tiling, Grab, Scratch } from './imports.js';
 
 /*
   The stack overlay decorates the top stacked window with its icon and
@@ -43,12 +43,14 @@ import { Settings, Utils, Tiling, Navigator, Grab, Scratch } from './imports.js'
   restack loops)
 */
 
-let pointerWatch;
-export function enable(extension) {
+let pointerWatch, previewPointerWatcher;
+export function enable(_extension) {
 
 }
 
 export function disable() {
+    previewPointerWatcher?.remove();
+    previewPointerWatcher = null;
     disableMultimonitorSupport();
 }
 
@@ -165,6 +167,8 @@ export class ClickOverlay {
 
 export class StackOverlay {
     constructor(direction, monitor) {
+        this.SHOW_DELAY = 100;
+
         this._direction = direction;
 
         let overlay = new Clutter.Actor({
@@ -184,26 +188,25 @@ export class StackOverlay {
 
         this.signals = new Utils.Signals();
 
+        // preview timeouts
         this.triggerPreviewTimeout = null;
+        this.showPreviewTimeout = null;
+        this.activatePreviewTimeout = null;
+
         this.signals.connect(overlay, 'button-press-event', () => {
-            if (Settings.prefs.edge_preview_scale > 0) {
-                Main.activateWindow(this.target);
+            if (!Settings.prefs.edge_preview_enable) {
+                return;
             }
-            // remove/cleanup the previous preview
-            this.removePreview();
-            this.triggerPreviewTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-                // if pointer is still at edge (within 2px), trigger preview
-                let [x, y, mask] = global.get_pointer();
-                if (x <= 2 || x >= this.monitor.width - 2) {
-                    this.triggerPreview.bind(this)();
-                }
-                this.triggerPreviewTimeout = null;
-                return false; // on return false destroys timeout
-            });
+
+            if (!Settings.prefs.edge_preview_click_enable) {
+                return;
+            }
+
+            this._activateTarget();
         });
 
-        this.signals.connect(overlay, 'enter-event', this.triggerPreview.bind(this));
-        this.signals.connect(overlay, 'leave-event', this.removePreview.bind(this));
+        this.signals.connect(overlay, 'enter-event', () => this.triggerPreview());
+        this.signals.connect(overlay, 'leave-event', () => this.removePreview());
 
         global.window_group.add_child(overlay);
         Main.layoutManager.trackChrome(overlay);
@@ -212,37 +215,128 @@ export class StackOverlay {
         this.setTarget(null);
     }
 
-    triggerPreview() {
-        if ("_previewId" in this)
+    _activateTarget() {
+        Main.activateWindow(this.target);
+        // remove/cleanup the previous preview
+        this.removePreview();
+
+        // if pointer is still at edge (within 2px), trigger preview
+        this.triggerPreviewTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            (Settings.prefs.animation_time * 1000) + 50,
+            () => {
+                if (this._pointerIsAtEdge()) {
+                    this.triggerPreview(true);
+                }
+
+                this.triggerPreviewTimeout = null;
+                return false; // on return false destroys timeout
+            });
+    }
+
+    /**
+     * Returns true if pointer x position is at monitor edge.
+     * @returns Boolean
+     */
+    _pointerIsAtEdge() {
+        const [x] = global.get_pointer();
+        switch (this._direction) {
+        case Meta.MotionDirection.LEFT:
+            if (x <= 2) {
+                return true;
+            }
+            break;
+        case Meta.MotionDirection.RIGHT:
+            if (x >= this.monitor.width - 2) {
+                return true;
+            }
+            break;
+        }
+
+        return false;
+    }
+
+    /**
+     * Triggers edge window preview.
+     * @param {Boolean} postActivatePreview: true if an auto preview after previous activation
+     * @returns
+     */
+    triggerPreview(postActivatePreview = false) {
+        if (!Settings.prefs.edge_preview_enable) {
             return;
-        if (!this.target)
+        }
+
+        if (this.showPreviewTimeout) {
             return;
-        this._previewId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            delete this._previewId;
-            this.removePreview();
-            this.showPreview();
-            this._previewId = null;
-            return false; // on return false destroys timeout
+        }
+
+        if (!this.target) {
+            return;
+        }
+
+        // create pointerwatcher to ensure preview is removed
+        previewPointerWatcher?.remove();
+        previewPointerWatcher = PointerWatcher.getPointerWatcher().addWatch(200, () => {
+            if (!this._pointerIsAtEdge()) {
+                this.removePreview();
+                previewPointerWatcher?.remove();
+                previewPointerWatcher = null;
+            }
         });
 
-        // uncomment to remove the preview after a timeout
-        /*
-        this._removeId = Mainloop.timeout_add_seconds(2, () => {
+        this.showPreviewTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this.SHOW_DELAY, () => {
             this.removePreview();
-            this._removeId = null;
+            this.showPreview();
+            this.showPreviewTimeout = null;
+
+            // activate preview on timeout
+            if (Settings.prefs.edge_preview_timeout_enable) {
+                // if no continual activation
+                if (postActivatePreview &&
+                    !Settings.prefs.edge_preview_timeout_continual) {
+                    // check have a target
+                    if (!this.target) {
+                        return;
+                    }
+
+                    // push pointer back
+                    let [, py] = global.get_pointer();
+                    const offset = 3;
+                    let x;
+                    switch (this._direction) {
+                    case Meta.MotionDirection.LEFT:
+                        x = this.monitor.x + offset;
+                        break;
+                    case Meta.MotionDirection.RIGHT:
+                        x = this.monitor.x + this.monitor.width - offset;
+                        break;
+                    }
+                    Utils.warpPointer(
+                        x,
+                        py,
+                        false
+                    );
+                    return;
+                }
+
+                this.activatePreviewTimeout = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    Settings.prefs.edge_preview_timeout, () => {
+                        // check if still at edge
+                        if (this._pointerIsAtEdge()) {
+                            this._activateTarget();
+                        }
+                    });
+            }
+
             return false; // on return false destroys timeout
         });
-        */
     }
 
     removePreview() {
-        if ("_previewId" in this) {
-            Utils.timeout_remove(this._previewId);
-            delete this._previewId;
-        }
-        if ("_removeId" in this) {
-            Utils.timeout_remove(this._removeId);
-            delete this._removeId;
+        if (this.showPreviewTimeout) {
+            Utils.timeout_remove(this.showPreviewTimeout);
+            this.showPreviewTimeout = null;
         }
 
         if (this.clone) {
@@ -255,7 +349,23 @@ export class StackOverlay {
      * Shows the window preview in from the side it was triggered on.
      */
     showPreview() {
-        let [x, y, mask] = global.get_pointer();
+        // only show if have valid scale
+        const scale = Settings.prefs.edge_preview_scale;
+        if (scale <= 0) {
+            return;
+        }
+
+        /**
+         * if timeout is enabled, only show if valid timeout (e.g. if SHOW_DELAY <= timeout,
+         * then won't see the preview anyway).
+         */
+        if (Settings.prefs.edge_preview_timeout_enable &&
+            Settings.prefs.edge_preview_timeout <= this.SHOW_DELAY
+        ) {
+            return;
+        }
+
+        let [x, y] = global.get_pointer();
         let actor = this.target.get_compositor_private();
         let clone = new Clutter.Clone({ source: actor });
         this.clone = clone;
@@ -265,7 +375,6 @@ export class StackOverlay {
         Tiling.animateWindow(this.target);
 
         // set clone parameters
-        const scale = Settings.prefs.edge_preview_scale;
         clone.opacity = 255 * 0.95;
 
         clone.set_scale(scale, scale);
@@ -364,9 +473,16 @@ export class StackOverlay {
         Utils.timeout_remove(this.triggerPreviewTimeout);
         this.triggerPreviewTimeout = null;
 
+        Utils.timeout_remove(this.showPreviewTimeout);
+        this.showPreviewTimeout = null;
+
+        Utils.timeout_remove(this.activatePreviewTimeout);
+        this.activatePreviewTimeout = null;
+
         this.signals.destroy();
         this.signals = null;
         this.removePreview();
+
         Main.layoutManager.untrackChrome(this.overlay);
         this.overlay.destroy();
     }

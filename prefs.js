@@ -234,10 +234,17 @@ class SettingsWidget {
 
         doubleValueChanged('animation_time_spin', 'animation-time');
         percentValueChanged('minimap_scale_spin', 'minimap-scale');
-        percentValueChanged('edge_scale_spin', 'edge-preview-scale');
         percentValueChanged('window_switcher_preview_scale_spin', 'window-switcher-preview-scale');
         percentValueChanged('overview_max_window_scale_spin', 'overview-max-window-scale');
         intValueChanged('minimap_shade_opacity_spin', 'minimap-shade-opacity');
+
+        // tiling edge preview settings
+        booleanStateChanged('edge-preview-enable');
+        percentValueChanged('edge_scale_spin', 'edge-preview-scale');
+        booleanStateChanged('edge-preview-click-enable');
+        booleanStateChanged('edge-preview-timeout-enable');
+        intValueChanged('edge_preview_timeout_scale', 'edge-preview-timeout');
+        booleanStateChanged('edge-preview-timeout-continual');
 
         const openWindowPosition = this.builder.get_object('open-window-position');
         const owpos = this._settings.get_int('open-window-position');

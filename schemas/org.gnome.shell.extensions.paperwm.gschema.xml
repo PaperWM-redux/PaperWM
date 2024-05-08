@@ -240,7 +240,7 @@
     </key>
     <key type="as" name="switch-up-or-else-workspace">
         <default><![CDATA[[]]]></default>
-        <summary>Switch window or workspace above</summary>
+        <summary>Switch to window or workspace above</summary>
     </key>
     <key type="as" name="switch-down-or-else-workspace">
         <default><![CDATA[[]]]></default>
@@ -445,9 +445,34 @@
       <summary>Sets the opacity of the non-selected windows during minimap navigation.</summary>
     </key>
 
+    <key type="b" name="edge-preview-enable">
+      <default>true</default>
+      <summary>Enables tiling edge window previews</summary>
+    </key>
+
     <key type="d" name="edge-preview-scale">
       <default>0.15</default>
       <summary>Scale of window previews at tiling edge. Scale is percent of actual window size.</summary>
+    </key>
+
+    <key type="b" name="edge-preview-click-enable">
+      <default>true</default>
+      <summary>Enables activating edge preview with click</summary>
+    </key>
+
+    <key type="b" name="edge-preview-timeout-enable">
+      <default>false</default>
+      <summary>Enables activating edge preview with a timeout</summary>
+    </key>
+
+    <key type="i" name="edge-preview-timeout">
+      <default>800</default>
+      <summary>Timeout (ms) before activating the edge preview</summary>
+    </key>
+
+    <key type="b" name="edge-preview-timeout-continual">
+      <default>false</default>
+      <summary>Enables the continual activation of windows if pointer is at edge of monitor</summary>
     </key>
 
     <key type="d" name="window-switcher-preview-scale">
