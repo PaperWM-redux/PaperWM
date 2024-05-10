@@ -193,6 +193,18 @@ export function setupActions(settings) {
     registerNavigatorAction("switch-down-or-else-workspace", Tiling.switchDownOrElseWorkspace);
 
     registerMinimapAction("switch-first", Tiling.activateFirstWindow);
+
+    registerMinimapAction("switch-second", (mw, space) => Tiling.activateNthWindow(1, space));
+    registerMinimapAction("switch-third", (mw, space) => Tiling.activateNthWindow(2, space));
+    registerMinimapAction("switch-fourth", (mw, space) => Tiling.activateNthWindow(3, space));
+    registerMinimapAction("switch-fifth", (mw, space) => Tiling.activateNthWindow(4, space));
+    registerMinimapAction("switch-sixth", (mw, space) => Tiling.activateNthWindow(5, space));
+    registerMinimapAction("switch-seventh", (mw, space) => Tiling.activateNthWindow(6, space));
+    registerMinimapAction("switch-eighth", (mw, space) => Tiling.activateNthWindow(7, space));
+    registerMinimapAction("switch-ninth", (mw, space) => Tiling.activateNthWindow(8, space));
+    registerMinimapAction("switch-tenth", (mw, space) => Tiling.activateNthWindow(9, space));
+    registerMinimapAction("switch-eleventh", (mw, space) => Tiling.activateNthWindow(10, space));
+
     registerMinimapAction("switch-last", Tiling.activateLastWindow);
 
     registerMinimapAction("switch-global-right", (mw, space) => space.switchGlobalRight());

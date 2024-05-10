@@ -251,6 +251,48 @@
         <default><![CDATA[['<Super>Home']]]></default>
         <summary>Switch to the first window</summary>
     </key>
+
+    <key type="as" name="switch-second">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the second window</summary>
+    </key>
+    <key type="as" name="switch-third">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the third window</summary>
+    </key>
+    <key type="as" name="switch-fourth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the fourth window</summary>
+    </key>
+    <key type="as" name="switch-fifth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the fifth window</summary>
+    </key>
+    <key type="as" name="switch-sixth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the sixth window</summary>
+    </key>
+    <key type="as" name="switch-seventh">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the seventh window</summary>
+    </key>
+    <key type="as" name="switch-eighth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the eighth window</summary>
+    </key>
+    <key type="as" name="switch-ninth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the ninth window</summary>
+    </key>
+    <key type="as" name="switch-tenth">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the tenth window</summary>
+    </key>
+    <key type="as" name="switch-eleventh">
+        <default><![CDATA[[]]]></default>
+        <summary>Switch to the eleventh window</summary>
+    </key>
+    
     <key type="as" name="switch-last">
         <default><![CDATA[['<Super>End']]]></default>
         <summary>Switch to the last window</summary>

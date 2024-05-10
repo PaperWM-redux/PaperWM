@@ -4635,12 +4635,12 @@ export function activateNthWindow(n, space) {
     ensureViewport(nth, space);
 }
 
-export function activateFirstWindow(mw, space) {
+export function activateFirstWindow(_mw, space) {
     space = space || spaces.activeSpace;
     activateNthWindow(0, space);
 }
 
-export function activateLastWindow(mw, space) {
+export function activateLastWindow(_mw, space) {
     space = space || spaces.activeSpace;
     activateNthWindow(space.length - 1, space);
 }
