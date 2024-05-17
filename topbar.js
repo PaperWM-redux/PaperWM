@@ -12,7 +12,6 @@ import * as panelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as popupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import { Settings, Utils, Tiling, Navigator, Scratch } from './imports.js';
-import { Easer } from './utils.js';
 
 // eslint-disable-next-line no-undef
 const workspaceManager = global.workspace_manager;

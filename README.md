@@ -115,8 +115,9 @@ Swiping the trackpad horizontally with three fingers (only available in Wayland)
 | <kbd>Shift</kbd><kbd>Super</kbd><kbd>,</kbd> or <kbd>Shift</kbd><kbd>Super</kbd><kbd>.</kbd>      | Move the current window to the left or right |
 | <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Left</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Right</kbd> | Move the current window to the left or right |
 | <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Up</kbd> or <kbd>Super</kbd><kbd>Ctrl</kbd><kbd>Down</kbd>    | Move the current window up or down |
-| <kbd>Super</kbd><kbd>I</kbd>                                                                      | Absorb the window to the right into the active column |
-| <kbd>Super</kbd><kbd>O</kbd>                                                                      | Expel the bottom window out to the right |
+| <kbd>Super</kbd><kbd>I</kbd>                                                                      | Absorb window into the active column |
+| <kbd>Super</kbd><kbd>O</kbd>                                                                      | Expel the bottom window from vertically tiled windows |
+| <kbd>Shift</kbd><kbd>Super</kbd><kbd>O</kbd>                                                      | Expel the active window from vertically tiled windows |
 | <kbd>Super</kbd><kbd>C</kbd>                                                                      | Center windows horizontally |
 | <kbd>Shift</kbd><kbd>Super</kbd><kbd>F</kbd>                                                      | Toggle fullscreen |
 | <kbd>Super</kbd><kbd>F</kbd>                                                                      | Maximize the width of a window |

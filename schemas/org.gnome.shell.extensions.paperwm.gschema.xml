@@ -317,11 +317,15 @@
 
     <key type="as" name="slurp-in">
         <default><![CDATA[['<Super>i']]]></default>
-        <summary>Consume the window to right into the active column</summary>
+        <summary>Consume window into the active column</summary>
     </key>
     <key type="as" name="barf-out">
         <default><![CDATA[['<Super>o']]]></default>
         <summary>Expel the bottom window into its own column</summary>
+    </key>
+    <key type="as" name="barf-out-active">
+        <default><![CDATA[['<Super><Shift>o']]]></default>
+        <summary>Expel the active window into its own column</summary>
     </key>
 
     <key type="as" name="resize-h-inc">

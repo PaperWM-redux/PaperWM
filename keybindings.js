@@ -289,7 +289,11 @@ export function setupActions(settings) {
         Meta.KeyBindingFlags.PER_WINDOW);
 
     registerPaperAction('barf-out',
-        Tiling.barf,
+        (mw, _space) => Tiling.barf(mw),
+        Meta.KeyBindingFlags.PER_WINDOW);
+
+    registerPaperAction('barf-out-active',
+        (mw, _space) => Tiling.barf(mw, mw),
         Meta.KeyBindingFlags.PER_WINDOW);
 
     registerPaperAction('toggle-maximize-width',

@@ -63,6 +63,7 @@ const actions = {
         'move-down',
         'slurp-in',
         'barf-out',
+        'barf-out-active',
         'center-horizontally',
         'paper-toggle-fullscreen',
         'toggle-maximize-width',

@@ -6,7 +6,7 @@ import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 
-import { Utils, Settings, Keybindings, Tiling, Scratch } from './imports.js';
+import { Settings, Keybindings, Tiling, Scratch } from './imports.js';
 import { Easer } from './utils.js';
 
 let switcherSettings;
