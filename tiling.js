@@ -38,6 +38,8 @@ export const FocusModes = { DEFAULT: 0, CENTER: 1, EDGE: 2 }; // export
 
 export const CycleWindowSizesDirection = { FORWARD: 0, BACKWARDS: 1 };
 
+export const SlurpInsertPosition = { BOTTOM: 0, TOP: 1, ABOVE: 2, BELOW: 3 };
+
 /**
    Scrolled and tiled per monitor workspace.
 
@@ -89,7 +91,7 @@ let signals, backgroundGroup, grabSignals;
 let gsettings, backgroundSettings, interfaceSettings;
 let displayConfig;
 let saveState;
-let startupTimeoutId, timerId, fullscrenStartTimeout;
+let startupTimeoutId, timerId, fullscrenStartTimeout, stackSlurpTimeout;
 let workspaceSettings;
 export let inGrab;
 export function enable(extension) {
@@ -203,6 +205,8 @@ export function disable () {
     timerId = null;
     Utils.timeout_remove(fullscrenStartTimeout);
     fullscrenStartTimeout = null;
+    Utils.timeout_remove(stackSlurpTimeout);
+    stackSlurpTimeout = null;
 
     grabSignals.destroy();
     grabSignals = null;
@@ -751,8 +755,8 @@ export class Space extends Array {
             this.moveDone();
         }
 
-        // if only one window on space, then center it
-        if (centerIfOne && this.getWindows().length === 1) {
+        // if only one column on space, then center it
+        if (centerIfOne && this.length === 1) {
             const mw = this.getWindows()[0];
             centerWindowHorizontally(mw);
         }
@@ -764,9 +768,10 @@ export class Space extends Array {
     queueLayout(animate = true, options = {}) {
         if (this._layoutQueued)
             return;
-
         this._layoutQueued = true;
-        Utils.later_add(Meta.LaterType.RESIZE, () => {
+
+        const laterType = options.laterType ?? Meta.LaterType.RESIZE;
+        Utils.later_add(laterType, () => {
             this._layoutQueued = false;
             this.layout(animate, options);
         });
@@ -3735,6 +3740,7 @@ export function insertWindow(metaWindow, { existing }) {
 
     const actor = metaWindow.get_compositor_private();
     const space = spaces.spaceOfWindow(metaWindow);
+    const active = space.selectedWindow;
 
     const connectSizeChanged = tiled => {
         if (tiled) {
@@ -3868,15 +3874,35 @@ export function insertWindow(metaWindow, { existing }) {
         resizeHandler(metaWindow);
         connectSizeChanged(true);
 
-        // remove winprop props after window shown
+        // // remove winprop props after window shown
         callbackOnActorShow(actor, () => {
             delete metaWindow.preferredWidth;
 
             Main.activateWindow(metaWindow);
             ensureViewport(space.selectedWindow, space);
             space.setSpaceTopbarElementsVisible(true);
-        });
 
+            switch (Settings.prefs.open_window_position) {
+            case Settings.OpenWindowPositions.DOWN:
+                stackSlurpTimeout = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    100,
+                    () => {
+                        slurp(active, SlurpInsertPosition.BELOW);
+                        return false; // on return false destroys timeout
+                    });
+                break;
+            case Settings.OpenWindowPositions.UP:
+                stackSlurpTimeout = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    100,
+                    () => {
+                        slurp(active, SlurpInsertPosition.ABOVE);
+                        return false; // on return false destroys timeout
+                    });
+                break;
+            }
+        });
         return;
     }
 
@@ -3910,7 +3936,6 @@ export function getOpenWindowPositionIndex(space) {
     case Settings.OpenWindowPositions.END:
         // get number of columns in space
         return space.length + 1;
-
     default:
         return index + 1;
     }
@@ -3995,6 +4020,7 @@ export function ensureViewport(meta_window, space, options = {}) {
     let moveto = options?.moveto ?? true;
     let animate = options?.animate ?? true;
     let ensureAnimation = options.ensureAnimation ?? Settings.EnsureViewportAnimation.TRANSLATE;
+    let callback = options.callback ?? function() {};
 
     let index = space.indexOf(meta_window);
     if (index === -1 || space.length === 0)
@@ -4025,7 +4051,11 @@ export function ensureViewport(meta_window, space, options = {}) {
 
     if (moveto) {
         move_to(space, meta_window, {
-            x, force, animate, ensureAnimation,
+            x,
+            force,
+            animate,
+            ensureAnimation,
+            callback,
         });
     }
 
@@ -4074,6 +4104,7 @@ export function move_to(space, metaWindow, options = {}) {
     let force = options.force ?? false;
     let animate = options.animate ?? true;
     let ensureAnimation = options.ensureAnimation ?? Settings.EnsureViewportAnimation.TRANSLATE;
+    let callback = options.callback ?? function() {};
     if (space.indexOf(metaWindow) === -1)
         return;
 
@@ -4081,12 +4112,14 @@ export function move_to(space, metaWindow, options = {}) {
     let target = x - clone.targetX;
     if (target === space.targetX && !force) {
         space.moveDone();
+        callback();
         return;
     }
 
     const done = () => {
         space.moveDone();
         space.fixOverlays(metaWindow);
+        callback();
     };
 
     space.targetX = target;
@@ -4833,29 +4866,25 @@ export function allocateEqualHeight(column, available) {
     return column.map(_ => Math.floor(available / column.length));
 }
 
-/*
-* pull in the top window from the column to the right. if there is no
-* column to the right, push active window into column to the left.
-* this allows freshly created windows to be stacked without
-* having to change focus
-*/
 /**
  * "Slurps" a window into the currently active column, vertically
  * stacking it.
  * @param {Meta.Window} metaWindow
+ * @param {Boolean} below
  * @returns
  */
-export function slurp(metaWindow) {
-    let space = spaces.spaceOfWindow(metaWindow);
-    let index = space.indexOf(metaWindow);
+export function slurp(metaWindow, insertAt = SlurpInsertPosition.BOTTOM) {
+    if (!metaWindow) {
+        return;
+    }
 
+    const space = spaces.spaceOfWindow(metaWindow);
+    const index = space.indexOf(metaWindow);
     let to, from, metaWindowToSlurp;
 
     if (space.length < 2) {
         return;
     }
-
-    // if here, we have at least 2 columns
 
     // get current direction mode
     const direction = Settings.prefs.open_window_position;
@@ -4883,7 +4912,23 @@ export function slurp(metaWindow) {
         metaWindowToSlurp.unmake_fullscreen();
     }
 
-    space[to].push(metaWindowToSlurp);
+    const spaceTo = space[to];
+    const rowIndex = spaceTo.indexOf(metaWindow);
+    switch (insertAt) {
+    case SlurpInsertPosition.ABOVE:
+        spaceTo.splice(rowIndex, 0, metaWindowToSlurp);
+        break;
+    case SlurpInsertPosition.BELOW:
+        spaceTo.splice(rowIndex + 1, 0, metaWindowToSlurp);
+        break;
+    case SlurpInsertPosition.TOP:
+        spaceTo.unshift(metaWindowToSlurp);
+        break;
+    case SlurpInsertPosition.BOTTOM:
+    default:
+        spaceTo.push(metaWindowToSlurp);
+        break;
+    }
 
     { // Remove the slurped window
         const column = space[from];
@@ -4917,12 +4962,12 @@ export function barf(metaWindow, expelWindow) {
     if (!metaWindow)
         return;
 
-    let space = spaces.spaceOfWindow(metaWindow);
-    let index = space.indexOf(metaWindow);
+    const space = spaces.spaceOfWindow(metaWindow);
+    const index = space.indexOf(metaWindow);
     if (index === -1)
         return;
 
-    let column = space[index];
+    const column = space[index];
     if (column.length < 2)
         return;
 

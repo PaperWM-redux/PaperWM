@@ -213,13 +213,13 @@ export function setupActions(settings) {
     registerMinimapAction("switch-global-down", (mw, space) => space.switchGlobalDown());
 
     registerMinimapAction("move-left",
-        (mw, space) => space.swap(Meta.MotionDirection.LEFT));
+        (_mw, space) => space.swap(Meta.MotionDirection.LEFT));
     registerMinimapAction("move-right",
-        (mw, space) => space.swap(Meta.MotionDirection.RIGHT));
+        (_mw, space) => space.swap(Meta.MotionDirection.RIGHT));
     registerMinimapAction("move-up",
-        (mw, space) => space.swap(Meta.MotionDirection.UP));
+        (_mw, space) => space.swap(Meta.MotionDirection.UP));
     registerMinimapAction("move-down",
-        (mw, space) => space.swap(Meta.MotionDirection.DOWN));
+        (_mw, space) => space.swap(Meta.MotionDirection.DOWN));
 
     registerPaperAction("toggle-scratch-window",
         Scratch.toggleScratchWindow);
@@ -239,6 +239,18 @@ export function setupActions(settings) {
 
     registerPaperAction("switch-open-window-position",
         Topbar.switchToNextOpenPositionMode);
+    registerPaperAction("open-window-position-right",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.RIGHT));
+    registerPaperAction("open-window-position-left",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.LEFT));
+    registerPaperAction("open-window-position-start",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.START));
+    registerPaperAction("open-window-position-end",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.END));
+    registerPaperAction("open-window-position-down",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.DOWN));
+    registerPaperAction("open-window-position-up",
+        (_mw, _space) => Topbar.setOpenPositionMode(Settings.OpenWindowPositions.UP));
 
     registerPaperAction("resize-h-inc",
         Tiling.resizeHInc,
@@ -285,7 +297,7 @@ export function setupActions(settings) {
         Meta.KeyBindingFlags.PER_WINDOW);
 
     registerPaperAction('slurp-in',
-        Tiling.slurp,
+        (mw, _space) => Tiling.slurp(mw),
         Meta.KeyBindingFlags.PER_WINDOW);
 
     registerPaperAction('barf-out',

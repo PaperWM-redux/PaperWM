@@ -2006,7 +2006,7 @@ button or using the &lt;i&gt;Switch between positions for creating windows (e.g.
                                           <object class="GtkLabel">
                                             <property name="focusable">False</property>
                                             <property name="hexpand">1</property>
-                                            <property name="label" translatable="yes">START</property>
+                                            <property name="label" translatable="yes">DOWN</property>
                                             <property name="xalign">0</property>
                                             <layout>
                                               <property name="column">0</property>
@@ -2015,10 +2015,50 @@ button or using the &lt;i&gt;Switch between positions for creating windows (e.g.
                                           </object>
                                         </child>
                                         <child>
-                                          <object class="GtkSwitch" id="open-window-position-option-start">
+                                          <object class="GtkSwitch" id="open-window-position-option-down">
                                             <layout>
                                               <property name="column">1</property>
                                               <property name="row">2</property>
+                                            </layout>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="focusable">False</property>
+                                            <property name="hexpand">1</property>
+                                            <property name="label" translatable="yes">UP</property>
+                                            <property name="xalign">0</property>
+                                            <layout>
+                                              <property name="column">0</property>
+                                              <property name="row">3</property>
+                                            </layout>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkSwitch" id="open-window-position-option-up">
+                                            <layout>
+                                              <property name="column">1</property>
+                                              <property name="row">3</property>
+                                            </layout>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="focusable">False</property>
+                                            <property name="hexpand">1</property>
+                                            <property name="label" translatable="yes">START</property>
+                                            <property name="xalign">0</property>
+                                            <layout>
+                                              <property name="column">0</property>
+                                              <property name="row">4</property>
+                                            </layout>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkSwitch" id="open-window-position-option-start">
+                                            <layout>
+                                              <property name="column">1</property>
+                                              <property name="row">4</property>
                                             </layout>
                                           </object>
                                         </child>
@@ -2030,7 +2070,7 @@ button or using the &lt;i&gt;Switch between positions for creating windows (e.g.
                                             <property name="xalign">0</property>
                                             <layout>
                                               <property name="column">0</property>
-                                              <property name="row">3</property>
+                                              <property name="row">5</property>
                                             </layout>
                                           </object>
                                         </child>
@@ -2038,7 +2078,7 @@ button or using the &lt;i&gt;Switch between positions for creating windows (e.g.
                                           <object class="GtkSwitch" id="open-window-position-option-end">
                                             <layout>
                                               <property name="column">1</property>
-                                              <property name="row">3</property>
+                                              <property name="row">5</property>
                                             </layout>
                                           </object>
                                         </child>

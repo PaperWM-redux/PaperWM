@@ -171,6 +171,30 @@
       <default><![CDATA[['<Super><Shift>w']]]></default>
       <summary>Switch between positions for creating windows (e.g. right, left)</summary>
     </key>
+    <key type="as" name="open-window-position-right">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows to the right</summary>
+    </key>
+    <key type="as" name="open-window-position-left">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows to the left</summary>
+    </key>
+    <key type="as" name="open-window-position-down">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows in vertical stack (down)</summary>
+    </key>
+    <key type="as" name="open-window-position-up">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows in vertical stack (up)</summary>
+    </key>
+    <key type="as" name="open-window-position-start">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows at start position</summary>
+    </key>
+    <key type="as" name="open-window-position-end">
+      <default><![CDATA[[]]]></default>
+      <summary>Create new windows at end position</summary>
+    </key>
 
     <key type="as" name="switch-next">
       <default><![CDATA[['<Super>period']]]></default>
@@ -599,10 +623,16 @@
     <key type="b" name="open-window-position-option-left">
         <default>true</default>
     </key>
-        <key type="b" name="open-window-position-option-start">
+    <key type="b" name="open-window-position-option-down">
+        <default>true</default>
+    </key>
+    <key type="b" name="open-window-position-option-up">
         <default>false</default>
     </key>
-        <key type="b" name="open-window-position-option-end">
+    <key type="b" name="open-window-position-option-start">
+        <default>false</default>
+    </key>
+    <key type="b" name="open-window-position-option-end">
         <default>false</default>
     </key>
 
