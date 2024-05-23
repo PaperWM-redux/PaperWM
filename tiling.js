@@ -3882,27 +3882,28 @@ export function insertWindow(metaWindow, { existing }) {
             ensureViewport(space.selectedWindow, space);
             space.setSpaceTopbarElementsVisible(true);
 
+            let slurpPosition;
             switch (Settings.prefs.open_window_position) {
             case Settings.OpenWindowPositions.DOWN:
-                stackSlurpTimeout = GLib.timeout_add(
-                    GLib.PRIORITY_DEFAULT,
-                    100,
-                    () => {
-                        slurp(active, SlurpInsertPosition.BELOW);
-                        return false; // on return false destroys timeout
-                    });
+                slurpPosition = SlurpInsertPosition.BELOW;
                 break;
             case Settings.OpenWindowPositions.UP:
+                slurpPosition = SlurpInsertPosition.ABOVE;
+                break;
+            }
+
+            // if need to slurp (i.e. vertical stack)
+            if (slurpPosition) {
                 stackSlurpTimeout = GLib.timeout_add(
                     GLib.PRIORITY_DEFAULT,
                     100,
                     () => {
-                        slurp(active, SlurpInsertPosition.ABOVE);
+                        slurp(active, slurpPosition);
                         return false; // on return false destroys timeout
                     });
-                break;
             }
         });
+
         return;
     }
 
