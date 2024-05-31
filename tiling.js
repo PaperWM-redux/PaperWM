@@ -130,14 +130,17 @@ export function enable(extension) {
     gsettings.connect('changed::vertical-margin', marginsGapChanged);
     gsettings.connect('changed::vertical-margin-bottom', marginsGapChanged);
     gsettings.connect('changed::window-gap', marginsGapChanged);
-    gsettings.connect('changed::selection-border-size', () => {
+    const changedBorder = () => {
         spaces.forEach(s => {
             Settings.prefs.selection_border_size <= 0 ? s.hideSelection() : s.showSelection();
             if (s.selectedWindow) {
                 allocateClone(s.selectedWindow);
             }
         });
-    });
+    };
+    gsettings.connect('changed::selection-border-size', changedBorder);
+    gsettings.connect('changed::selection-border-radius-top', changedBorder);
+    gsettings.connect('changed::selection-border-radius-bottom', changedBorder);
 
     backgroundGroup = Main.layoutManager._backgroundGroup;
 
@@ -3382,6 +3385,10 @@ export function allocateClone(metaWindow) {
         selection.set_size(
             frame.width + (hMax ? 0 : protrusion * 2),
             frame.height + (vMax ? 0 : protrusion * 2));
+
+        const rtop = Settings.prefs.selection_border_radius_top;
+        const rbottom = Settings.prefs.selection_border_radius_bottom;
+        selection.style = `border-radius: ${rtop}px ${rtop}px ${rbottom}px ${rbottom}px`;
     }
 }
 

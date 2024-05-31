@@ -69,6 +69,8 @@ export function enable(extension) {
         'overview-max-window-scale',
         'minimap-shade-opacity',
         'selection-border-size',
+        'selection-border-radius-top',
+        'selection-border-radius-bottom',
         'open-window-position-option-right',
         'open-window-position-option-left',
         'open-window-position-option-start',

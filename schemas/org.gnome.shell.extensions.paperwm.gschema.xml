@@ -502,7 +502,17 @@
 
     <key type="i" name="selection-border-size">
       <default>10</default>
-      <summary>Sets the selected/focused window border size (px)</summary>
+      <summary>Sets the selected window border size (px)</summary>
+    </key>
+
+    <key type="i" name="selection-border-radius-top">
+      <default>12</default>
+      <summary>Sets the selected window border top corners radius (px)</summary>
+    </key>
+
+    <key type="i" name="selection-border-radius-bottom">
+      <default>0</default>
+      <summary>Sets the selected window border top corners radius (px)</summary>
     </key>
 
     <key type="d" name="minimap-scale">

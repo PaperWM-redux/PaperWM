@@ -406,6 +406,12 @@ In general extensions that do one of the following are problematic when used tog
 
 PaperWM will attempt to disable keybindings of some known extensions if they clash. E.g. the Ubuntu Tiling Assistant from Ubuntu 23.10.
 
-## Prior work ##
+## Related / similar projects ##
 
-A similar idea was apparently tried out a while back: [10/GUI](https://web.archive.org/web/20201123162403/http://10gui.com/)
+More projects are embracing the scrollable tiling concept!  The following projects may be of interest to others (especially if PaperWM doesn't quite work for you):
+
+- Niri: https://github.com/YaLTeR/niri
+- Karousel (for KDE): https://github.com/peterfajdiga/karousel
+- papersway (for i3/sway): https://spwhitton.name/tech/code/papersway/
+
+A similar idea was apparently tried out a while back: [10/GUI](https://web.archive.org/web/20201123162403/http://10gui.com/).

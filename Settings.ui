@@ -50,6 +50,16 @@
     <property name="step_increment">1</property>
     <property name="page_increment">5</property>
   </object>
+  <object class="GtkAdjustment" id="selection_radius_size_top">
+    <property name="upper">50</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">5</property>
+  </object>
+  <object class="GtkAdjustment" id="selection_radius_size_bottom">
+    <property name="upper">50</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">5</property>
+  </object>
   <object class="GtkAdjustment" id="animation_time_adjustment">
     <property name="upper">6.00</property>
     <property name="lower">0.00</property>
@@ -496,7 +506,7 @@
                   <object class="GtkLabel">
                     <property name="halign">start</property>
                     <property name="hexpand">True</property>
-                    <property name="label" translatable="yes">Gaps and margins</property>
+                    <property name="label" translatable="yes">Border | Gaps | Margins</property>
                     <attributes>
                       <attribute name="weight" value="bold" />
                     </attributes>
@@ -560,6 +570,93 @@
                         <child>
                           <object class="GtkGrid">
                             <property name="focusable">False</property>
+                            <property name="tooltip_text" translatable="yes">The pixel size of border-radius for top corners</property>
+                            <property name="margin_start">12</property>
+                            <property name="margin_end">12</property>
+                            <property name="margin_top">6</property>
+                            <property name="margin_bottom">6</property>
+                            <property name="column_spacing">32</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="focusable">False</property>
+                                <property name="hexpand">1</property>
+                                <property name="label" translatable="yes">Selected window border-radius for top corners (px)</property>
+                                <property name="xalign">0</property>
+                                <layout>
+                                  <property name="column">0</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkSpinButton" id="selection_radius_top_spin">
+                                <property name="width_chars">2</property>
+                                <property name="max_width_chars">2</property>
+                                <property name="adjustment">selection_radius_size_top</property>
+                                <property name="snap_to_ticks">1</property>
+                                <property name="numeric">1</property>
+                                <property name="update_policy">always</property>
+                                <layout>
+                                  <property name="column">1</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkListBoxRow">
+                        <property name="activatable">False</property>
+                        <property name="focusable">False</property>
+                        <child>
+                          <object class="GtkGrid">
+                            <property name="focusable">False</property>
+                            <property name="tooltip_text" translatable="yes">The pixel size of border radius for bottom corners</property>
+                            <property name="margin_start">12</property>
+                            <property name="margin_end">12</property>
+                            <property name="margin_top">6</property>
+                            <property name="margin_bottom">6</property>
+                            <property name="column_spacing">32</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="focusable">False</property>
+                                <property name="hexpand">1</property>
+                                <property name="label" translatable="yes">Selected window border-radius for bottom corners (px)</property>
+                                <property name="xalign">0</property>
+                                <layout>
+                                  <property name="column">0</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkSpinButton" id="selection_radius_bottom_spin">
+                                <property name="width_chars">2</property>
+                                <property name="max_width_chars">2</property>
+                                <property name="adjustment">selection_radius_size_bottom</property>
+                                <property name="snap_to_ticks">1</property>
+                                <property name="numeric">1</property>
+                                <property name="update_policy">always</property>
+                                <layout>
+                                  <property name="column">1</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkListBoxRow">
+                        <property name="activatable">False</property>
+                        <property name="focusable">False</property>
+                        <child>
+                          <object class="GtkGrid">
+                            <property name="focusable">False</property>
                             <property name="margin_start">12</property>
                             <property name="margin_end">12</property>
                             <property name="margin_top">6</property>
@@ -599,7 +696,6 @@
                       <object class="GtkListBoxRow" id="general_row1">
                         <property name="activatable">False</property>
                         <property name="focusable">False</property>
-
                         <child>
                           <object class="GtkGrid" id="workspace_grid1">
                             <property name="focusable">False</property>
@@ -1093,7 +1189,7 @@
                   <object class="GtkLabel">
                     <property name="halign">start</property>
                     <property name="hexpand">True</property>
-                    <property name="label" translatable="yes">Animation / Visual Settings</property>
+                    <property name="label" translatable="yes">Animation | Visual Settings</property>
                     <attributes>
                       <attribute name="weight" value="bold" />
                     </attributes>

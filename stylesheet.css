@@ -55,11 +55,6 @@ NOTE: please update `./config/users.css` with any new styles added here.
     icon-size: 16px;
 }
 
-.paperwm-selection {
-    /* matches border radius of default gnome windows */
-    border-radius: 12px 12px 0px 0px;
-}
-
 .paperwm-minimap-selection {
     border-radius: 8px;
 }
