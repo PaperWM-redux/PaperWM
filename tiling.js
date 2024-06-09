@@ -765,6 +765,12 @@ export class Space extends Array {
         }
 
         callback && callback();
+
+        // save the last size frame (for use in restoring)
+        this.getWindows().forEach(w => {
+            w._last_layout_frame = w.get_frame_rect();
+        });
+
         this.emit('layout', this);
     }
 
@@ -894,14 +900,14 @@ export class Space extends Array {
             // check if mismatch tracking needed, otherwise leave
             if (f.x === x && f.y === y) {
                 // delete any mismatch counter (e.g. from previous attempt)
-                delete w.pos_mismatch_count;
+                delete w._pos_mismatch_count;
                 return;
             }
 
             // guard against recursively calling this method
             // see https://github.com/paperwm/PaperWM/issues/769
-            if (w.pos_mismatch_count &&
-                w.pos_mismatch_count > 1) {
+            if (w._pos_mismatch_count &&
+                w._pos_mismatch_count > 1) {
                 console.warn(`clone/window position-changed recursive call: ${w.title}`);
                 return;
             }
@@ -909,11 +915,11 @@ export class Space extends Array {
             // mismatch detected
             // move frame to ensure window position matches clone
             try {
-                if (!w.pos_mismatch_count) {
-                    w.pos_mismatch_count = 0;
+                if (!w._pos_mismatch_count) {
+                    w._pos_mismatch_count = 0;
                 }
                 else {
-                    w.pos_mismatch_count += 1;
+                    w._pos_mismatch_count += 1;
                 }
                 w.move_frame(true, x, y);
             }
@@ -2013,9 +2019,9 @@ border-radius: ${borderWidth}px;
 
     destroy() {
         this.getWindows().forEach(w => {
-            removeHandlerFlags(w);
-            delete w.pos_mismatch_count;
-            delete w.tiled_on_minimize;
+
+            
+            removePaperWMFlags(w);
         });
         this.signals.destroy();
         this.signals = null;
@@ -2101,8 +2107,8 @@ export const Spaces = class Spaces extends Map {
         // Clone and hook up existing windows
         display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
             .forEach(w => {
-                // remove handler flags
-                removeHandlerFlags(w);
+                // remove flags
+                removePaperWMFlags(w);
 
                 registerWindow(w);
                 // Fixup allocations on reload
@@ -3339,9 +3345,28 @@ export function registerWindow(metaWindow) {
     signals.connect(metaWindow, 'notify::minimized', metaWindow => {
         minimizeHandler(metaWindow);
     });
+
+    signals.connect(metaWindow, 'notify::maximized-horizontally', metaWindow => {
+        if (
+            Settings.prefs.maximize_within_tiling &&
+            metaWindow.get_maximized() === Meta.MaximizeFlags.BOTH) {
+            metaWindow.unmaximize(Meta.MaximizeFlags.BOTH);
+
+            // restore last layout frame
+            if (metaWindow._last_layout_frame) {
+                const lsf = metaWindow._last_layout_frame;
+                metaWindow.move_resize_frame(true, lsf.x, lsf.y, lsf.width, lsf.height);
+            }
+
+            toggleMaximizeHorizontally(metaWindow);
+            // spaces.spaceOfWindow(metaWindow)?.layout();
+        }
+    });
+
     signals.connect(actor, 'show', actor => {
         showHandler(actor);
     });
+
     signals.connect(actor, 'destroy', destroyHandler);
 
     return true;
@@ -3397,12 +3422,18 @@ export function destroyHandler(actor) {
 }
 
 /**
- * Removes resize and position handler flags.
+ * Removes resize, position, and other flags.  Used during cleanup etc.
  * @param {Meta.Window} metaWindow
  */
-export function removeHandlerFlags(metaWindow) {
-    delete metaWindow._resizeHandlerAdded;
-    delete metaWindow._positionHandlerAdded;
+export function removePaperWMFlags(w) {
+    delete w._targetWidth;
+    delete w._targetHeight;
+    delete w._resizeHandlerAdded;
+    delete w._positionHandlerAdded;
+    delete w._pos_mismatch_count;
+    delete w._tiled_on_minimize;
+    delete w._fullscreen_frame;
+    delete w._last_layout_frame;
 }
 
 export function addPositionHandler(metaWindow) {
@@ -4380,14 +4411,14 @@ export function minimizeHandler(metaWindow) {
         console.debug('minimized', metaWindow?.title);
         // check if was tiled
         if (isTiled(metaWindow)) {
-            metaWindow.tiled_on_minimize = true;
+            metaWindow._tiled_on_minimize = true;
         }
         Scratch.makeScratch(metaWindow);
     }
     else {
         console.debug('unminimized', metaWindow?.title);
-        if (metaWindow.tiled_on_minimize) {
-            delete metaWindow.tiled_on_minimize;
+        if (metaWindow._tiled_on_minimize) {
+            delete metaWindow._tiled_on_minimize;
             Utils.later_add(Meta.LaterType.IDLE, () => {
                 Scratch.unmakeScratch(metaWindow);
             });

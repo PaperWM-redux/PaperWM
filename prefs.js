@@ -466,6 +466,7 @@ class SettingsWidget {
         // disabled since opposite of gnome-pill
         // booleanSetState('show-workspace-indicator');
         percentValueChanged('maximize-width-percent', 'maximize-width-percent');
+        booleanStateChanged('maximize-within-tiling');
 
         // About
         // build version information

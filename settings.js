@@ -45,6 +45,7 @@ export function enable(extension) {
         'cycle-width-steps',
         'cycle-height-steps',
         'maximize-width-percent',
+        'maximize-within-tiling',
         'minimap-scale',
         'edge-preview-enable',
         'edge-preview-scale',

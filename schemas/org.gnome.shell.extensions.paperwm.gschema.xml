@@ -595,6 +595,11 @@
       <summary>Percent of workspace width the horizontal window maximise function (Super+F) will use.</summary>
     </key>
 
+    <key type="b" name="maximize-within-tiling">
+      <default>true</default>
+      <summary>Handle maximize events from windows (e.g. header bar double click) by maximizing their width without going beyond the margins.</summary>
+    </key>
+
     <key type="as" name="workspace-colors">
       <default><![CDATA[['#314E6C', '#565248', '#445632', '#663822',
        '#494066', '#826647', '#4B6983', '#807D74', '#5D7555', '#884631',

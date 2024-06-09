@@ -317,7 +317,7 @@ export function update(space, dx, t) {
     let target = Math.round(space.targetX - d);
 
     space.targetX = target;
-    let selected = findTargetWindow(space, direction, start - space.targetX > 0);
+    const selected = findTargetWindow(space, start - space.targetX > 0);
     space.targetX = space.cloneContainer.x;
     Tiling.updateSelection(space, selected);
     space.selectedWindow = selected;
