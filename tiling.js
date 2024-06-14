@@ -309,6 +309,10 @@ export class Space extends Array {
             style_class: 'paperwm-selection tile-preview',
         });
         this.selection = selection;
+        // initial state is shown (unless border-size is 0)
+        if (Settings.prefs.selection_border_size <= 0) {
+            this.hideSelection();
+        }
 
         clip.space = this;
         cloneContainer.space = this;
@@ -2019,8 +2023,6 @@ border-radius: ${borderWidth}px;
 
     destroy() {
         this.getWindows().forEach(w => {
-
-            
             removePaperWMFlags(w);
         });
         this.signals.destroy();
@@ -3367,6 +3369,16 @@ export function registerWindow(metaWindow) {
         showHandler(actor);
     });
 
+    /**
+     * Ensures when moving window that it's targetHeight is met.
+     */
+    signals.connect(actor, 'stage-views-changed', _actor => {
+        const f = metaWindow.get_frame_rect();
+        if (metaWindow._targetHeight !== f.height) {
+            resizeHandler(metaWindow);
+        }
+    });
+
     signals.connect(actor, 'destroy', destroyHandler);
 
     return true;
@@ -3474,11 +3486,15 @@ export function resizeHandler(metaWindow) {
     if (inGrab && inGrab.window === metaWindow)
         return;
 
+    const space = spaces.spaceOfWindow(metaWindow);
+    if (!space) {
+        return;
+    }
+
     const f = metaWindow.get_frame_rect();
     metaWindow._targetWidth = null;
     metaWindow._targetHeight = null;
 
-    const space = spaces.spaceOfWindow(metaWindow);
     if (space.indexOf(metaWindow) === -1) {
         nonTiledSizeHandler(metaWindow);
         return;
