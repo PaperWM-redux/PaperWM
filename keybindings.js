@@ -172,6 +172,20 @@ export function setupActions(settings) {
     registerNavigatorAction('move-down-workspace', Tiling.moveDownSpace);
     registerNavigatorAction('move-up-workspace', Tiling.moveUpSpace);
 
+    registerPaperAction('toggle-top-and-position-bar', (_mw, space) => {
+        const value = !space.settings.get_boolean('show-top-bar');
+        space.settings.set_boolean('show-top-bar', value);
+        space.settings.set_boolean('show-position-bar', value);
+    });
+    registerPaperAction('toggle-top-bar', (_mw, space) => {
+        const value = space.settings.get_boolean('show-top-bar');
+        space.settings.set_boolean('show-top-bar', !value);
+    });
+    registerPaperAction('toggle-position-bar', (_mw, space) => {
+        const value = space.settings.get_boolean('show-position-bar');
+        space.settings.set_boolean('show-position-bar', !value);
+    });
+
     registerNavigatorAction('take-window', Tiling.takeWindow);
 
     registerMinimapAction("switch-next", (mw, space) => space.switchLinear(1, false));
@@ -440,7 +454,7 @@ export function bindkey(keystr, actionName = null, handler = null, options = {})
             let boundId = getBoundActionId(keystr);
             if (boundId !== Meta.KeyBindingAction.NONE) {
                 let builtInAction =
-                    Object.entries(Meta.KeyBindingAction).find(([name, id]) => id === boundId);
+                    Object.entries(Meta.KeyBindingAction).find(([_name, id]) => id === boundId);
                 if (builtInAction) {
                     message = `${keystr} already bound to built-in action: ${builtInAction[0]}`;
                 } else {
@@ -482,7 +496,7 @@ export function devirtualizeMask(gdkVirtualMask) {
 }
 
 export function rawMaskOfKeystr(keystr) {
-    let [dontcare, keycodes, mask] = Settings.accelerator_parse(keystr);
+    let [, , mask] = Settings.accelerator_parse(keystr);
     return devirtualizeMask(mask);
 }
 
@@ -501,7 +515,7 @@ export function openNavigatorHandler(actionName, keystr) {
 }
 
 export function getBoundActionId(keystr) {
-    let [dontcare, keycodes, mask] = Settings.accelerator_parse(keystr);
+    let [, keycodes, mask] = Settings.accelerator_parse(keystr);
     if (keycodes.length > 1) {
         throw new Error(`Multiple keycodes ${keycodes} ${keystr}`);
     }
@@ -509,7 +523,7 @@ export function getBoundActionId(keystr) {
     return display.get_keybinding_action(keycodes[0], rawMask);
 }
 
-export function handleAccelerator(display, actionId, deviceId, timestamp) {
+export function handleAccelerator(display, actionId, _deviceId, _timestamp) {
     const action = actionIdMap[actionId];
     if (action) {
         console.debug("#keybindings", "Schemaless keybinding activated",

@@ -74,6 +74,19 @@
       <summary>Move window one workspace up</summary>
     </key>
 
+    <key type="as" name="toggle-top-and-position-bar">
+      <default><![CDATA[['<Super><Ctrl>b']]]></default>
+      <summary>Toggle the Top Bar and Window Position Bar on current workspace</summary>
+    </key>
+    <key type="as" name="toggle-top-bar">
+      <default><![CDATA[[]]]></default>
+      <summary>Toggle the Top Bar on current workspace</summary>
+    </key>
+    <key type="as" name="toggle-position-bar">
+      <default><![CDATA[[]]]></default>
+      <summary>Toggle the Window Position Bar on current workspace</summary>
+    </key>
+
     <key type="as" name="move-monitor-right">
         <default><![CDATA[['<Super><Shift><Ctrl>Right']]]></default>
         <summary>Move the active window to the right monitor</summary>
@@ -433,7 +446,11 @@
       </key>
       <key type="b" name="show-top-bar">
           <default>true</default>
-          <summary>Show the topbar</summary>
+          <summary>Show the GNOME Top Bar</summary>
+      </key>
+      <key type="b" name="show-position-bar">
+          <default>true</default>
+          <summary>Show the PaperWM Window Position Bar</summary>
       </key>
       <key type="s" name="color">
           <default>''</default>
@@ -486,12 +503,12 @@
     </key>
 
     <key type="i" name="vertical-margin">
-      <default>10</default>
+      <default>20</default>
       <summary>Minimum margin from windows top edge</summary>
     </key>
 
     <key type="i" name="vertical-margin-bottom">
-        <default>10</default>
+        <default>20</default>
         <summary>Minimum margin from windows bottom edge</summary>
     </key>
 

@@ -87,8 +87,6 @@ export function enable (extension) {
 
     signals.connect(Main.overview, 'showing', fixTopBar);
     signals.connect(Main.overview, 'hidden', () => {
-        if (Tiling.spaces.selectedSpace.showTopBar)
-            return;
         fixTopBar();
     });
 
@@ -103,9 +101,8 @@ export function enable (extension) {
 
     signals.connect(gsettings, 'changed::show-window-position-bar', (_settings, _key) => {
         const spaces = Tiling.spaces;
-        spaces.setSpaceTopbarElementsVisible();
-        spaces.forEach(s => s.layout(false));
-        spaces.showWindowPositionBarChanged();
+        spaces.forEach(s => s.showPositionBarChanged());
+        fixStyle();
     });
 
     signals.connect(gsettings, 'changed::show-workspace-indicator', (_settings, _key) => {
@@ -123,9 +120,10 @@ export function enable (extension) {
     signals.connect(panelBox, 'show', () => {
         fixTopBar();
     });
-    signals.connect(panelBox, 'hide', () => {
-        fixTopBar();
-    });
+    // signals.connect(panelBox, 'hide', () => {
+    //     fixTopBar();
+    // });
+
     /**
      * Set clear-style when hiding overview.
      */
@@ -150,7 +148,6 @@ export function disable() {
 
     screenSignals.forEach(id => workspaceManager.disconnect(id));
     screenSignals = [];
-    panelBox.scale_y = 1;
     openPrefs = null;
     gsettings = null;
 }
@@ -323,8 +320,8 @@ const BaseIcon = GObject.registerClass(
         initToolTip() {
             const tt = new St.Label({ style_class: 'focus-button-tooltip' });
             tt.hide();
-            // eslint-disable-next-line no-undef
-            global.stage.add_child(tt);
+            // global.stage.add_child(tt);
+            Utils.actor_add_child(global.stage, tt);
             this.tooltip_parent.connect('enter-event', _icon => {
                 this._updateTooltipPosition(this.tooltip_x_point);
                 this.updateTooltipText();
@@ -601,7 +598,6 @@ export function switchToNextOpenPositionMode() {
     // if current mode is -1, then set the mode to the first option
     let nextMode;
     if (currIndex < 0) {
-        console.log(`couldn't find`);
         nextMode = activeModes[0];
     }
     else {
@@ -813,14 +809,27 @@ export const WorkspaceMenu = GObject.registerClass(
         }
     });
 
+/**
+ * Returns monitor where panel is currently on.
+ * @returns Monitor
+ */
 export function panelMonitor() {
     return Main.layoutManager.primaryMonitor;
+}
+
+/**
+ * Returns space where panel is currently on.
+ * @returns Tiling.Space
+ */
+export function panelSpace() {
+    return Tiling?.spaces?.monitors?.get(panelMonitor());
 }
 
 export function setNoBackgroundStyle() {
     if (Settings.prefs.disable_topbar_styling) {
         return;
     }
+
     removeStyles();
     Main.panel.add_style_class_name('background-clear');
 }
@@ -829,6 +838,7 @@ export function setTransparentStyle() {
     if (Settings.prefs.disable_topbar_styling) {
         return;
     }
+
     removeStyles();
     Main.panel.add_style_class_name('topbar-transparent-background');
 }
@@ -843,33 +853,48 @@ export function removeStyles() {
  * Applies correct style based on whether we use the windowPositionBar or not.
  */
 export function fixStyle() {
-    Settings.prefs.show_window_position_bar ? setNoBackgroundStyle() : setTransparentStyle();
+    const space = panelSpace();
+    if (
+        Settings.prefs.show_window_position_bar &&
+        (space?.showPositionBar ?? true)
+    ) {
+        setNoBackgroundStyle();
+    }
+    else {
+        setTransparentStyle();
+    }
 }
 
 export function fixTopBar() {
-    let space = Tiling?.spaces?.monitors?.get(panelMonitor()) ?? false;
+    const space = panelSpace();
     if (!space)
         return;
 
-    let normal = !Main.overview.visible && !Tiling.inPreview;
+    const normal = !Main.overview.visible && !Tiling.inPreview;
     // selected is current (tiled) selected window (can be different to focused window)
-    let selected = space.selectedWindow;
-    let focused = display.focus_window;
-    let focusIsFloatOrScratch = focused && (space.isFloating(focused) || Scratch.isScratchWindow(focused));
+    const selected = space.selectedWindow;
+    const focused = display.focus_window;
+    const focusIsFloatOrScratch = focused && (space.isFloating(focused) || Scratch.isScratchWindow(focused));
     // check if is currently fullscreened (check focused-floating, focused-scratch, and selected/tiled window)
-    let fullscreen = focusIsFloatOrScratch ? focused.fullscreen : selected && selected.fullscreen;
+    const fullscreen = focusIsFloatOrScratch ? focused.fullscreen : selected && selected.fullscreen;
 
     if (normal && !space.showTopBar) {
-        panelBox.scale_y = 0; // Update the workarea to support hide top bar
-        panelBox.hide();
+        hideTopBar();
     }
     else if (normal && fullscreen) {
-        panelBox.hide();
+        hideTopBar();
     }
     else {
-        panelBox.scale_y = 1;
-        panelBox.show();
+        showTopBar();
     }
+}
+
+export function showTopBar() {
+    panelBox.show();
+}
+
+export function hideTopBar() {
+    panelBox.hide();
 }
 
 export function fixWorkspaceIndicator() {
@@ -912,8 +937,10 @@ export function updateWorkspaceIndicator(index) {
  * Refreshes topbar workspace indicator.
  */
 export function refreshWorkspaceIndicator() {
-    let panelSpace = Tiling.spaces.monitors.get(panelMonitor());
-    updateWorkspaceIndicator(panelSpace.index);
+    const space = panelSpace();
+    if (space) {
+        updateWorkspaceIndicator(space.index);
+    }
 }
 
 export function setWorkspaceName (name) {

@@ -63,7 +63,7 @@ export class MoveGrab {
 
         this.initialY = clone.targetY;
         Easer.removeEase(clone);
-        let [gx, gy, $] = Utils.getPointerCoords();
+        let [gx, gy] = Utils.getPointerCoords();
 
         let px = (gx - actor.x) / actor.width;
         let py = (gy - actor.y) / actor.height;
@@ -121,7 +121,7 @@ export class MoveGrab {
         let clone = metaWindow.clone;
         let space = this.initialSpace;
 
-        let [gx, gy, $] = global.get_pointer();
+        let [gx, gy] = global.get_pointer();
         let point = {};
         if (center) {
             point = space.cloneContainer.apply_relative_transform_to_point(
@@ -158,7 +158,7 @@ export class MoveGrab {
         let monitor = Utils.monitorAtPoint(gx, gy);
         let onSame = monitor === space.monitor;
 
-        let [x, y] = space.globalToViewport(gx, gy);
+        let [x] = space.globalToViewport(gx, gy);
         if (!this.center && onSame && single && space[i]) {
             Tiling.move_to(space, space[i][0], { x: x + Settings.prefs.window_gap / 2 });
         } else if (!this.center && onSame && single && space[i - 1]) {
@@ -170,14 +170,14 @@ export class MoveGrab {
 
         let [sx, sy] = space.globalToScroll(gx, gy, { useTarget: true });
 
-        for (let [workspace, space] of Tiling.spaces) {
+        Tiling.spaces.forEach(space => {
             this.signals.connect(space.background, "motion-event", this.spaceMotion.bind(this, space));
-        }
+        });
         this.selectDndZone(space, sx, sy, single && onSame);
     }
 
-    spaceMotion(space, background, event) {
-        let [gx, gy, $] = global.get_pointer();
+    spaceMotion(space, _background, _event) {
+        let [gx, gy] = global.get_pointer();
         let [sx, sy] = space.globalToScroll(gx, gy, { useTarget: true });
         this.selectDndZone(space, sx, sy);
     }
@@ -203,7 +203,7 @@ export class MoveGrab {
             const lastClone = space[space.length - 1][0].clone;
             fakeClone.targetX = lastClone.x + lastClone.width + gap;
         } else {
-            let [sx, sy] = space.viewportToScroll(Math.round(space.width / 2), 0);
+            let [sx] = space.viewportToScroll(Math.round(space.width / 2), 0);
             fakeClone.targetX = sx + halfGap;
         }
 
@@ -305,10 +305,9 @@ export class MoveGrab {
         }
     }
 
-    motion(actor, event) {
+    motion(_actor, event) {
         let metaWindow = this.window;
-        // let [gx, gy] = event.get_coords();
-        let [gx, gy, $] = global.get_pointer();
+        let [gx, gy] = global.get_pointer();
         if (event.type() === Clutter.EventType.TOUCH_UPDATE) {
             [gx, gy] = event.get_coords();
             // We update global pointer to match touch event
@@ -370,7 +369,7 @@ export class MoveGrab {
         let metaWindow = this.window;
         let actor = metaWindow.get_compositor_private();
         let clone = metaWindow.clone;
-        let [gx, gy, $] = global.get_pointer();
+        let [gx, gy] = global.get_pointer();
 
         this.zoneActors.forEach(actor => actor.destroy());
         let params = {
@@ -391,7 +390,7 @@ export class MoveGrab {
                     Scratch.unmakeScratch(metaWindow);
 
                 // Remember the global coordinates of the clone
-                let [x, y] = clone.get_position();
+                let [x] = clone.get_position();
                 space.addWindow(metaWindow, ...dndTarget.position);
 
                 let [sx, sy] = space.globalToScroll(gx, gy);
@@ -498,7 +497,7 @@ export class MoveGrab {
         Utils.later_add(Meta.LaterType.IDLE, () => {
             if (!global.display.end_grab_op && this.wasTiled) {
                 // move to current cursor position
-                let [x, y, _mods] = global.get_pointer();
+                let [x, y] = global.get_pointer();
                 getVirtualPointer().notify_absolute_motion(
                     Clutter.get_current_event_time(),
                     x, y);
@@ -555,7 +554,8 @@ export class MoveGrab {
             zone.actor[zone.originProp] = zone.center;
         }
 
-        zone.space.cloneContainer.add_child(zone.actor);
+        // zone.space.cloneContainer.add_child(zone.actor);
+        Utils.actor_add_child(zone.space.cloneContainer, zone.actor);
         zone.space.hideSelection();
         zone.actor.show();
         raise();

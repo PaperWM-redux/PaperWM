@@ -173,6 +173,9 @@ There's a single scrollable tiling per workspace. Adding another monitor simply 
 | <kbd>Super</kbd><kbd>PageDown</kbd>                                                               | Switch to workspace below |
 | <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>PageUp</kbd>                                                  | Move active window one workspace up |
 | <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>PageDown</kbd>                                                | Move active window one workspace down |
+| <kbd>Ctrl</kbd><kbd>Super</kbd><kbd>B</kbd>                                                       | Toggle show/hide (GNOME) TopBar and Window Position Bar |
+| _Not set by default (set in extension settings)_                                                  | Toggle show/hide (GNOME) TopBar |
+| _Not set by default (set in extension settings)_                                                  | Toggle show/hide Window Position Bar |
 
 
 | `monitor` keybindings                                                                             | _Can be changed in PaperWM extension settings_ | 
@@ -249,7 +252,7 @@ _Note: PaperWM overrides the default Gnome Top Bar style to be completely transp
 - the `CENTER` focus mode causes all windows to be centered horizontally on selection
 - the `EDGE` focus mode causes windows to snap to the closest edge horizontally on selection (but while there is only one window, it is centered)
 
-Focus modes can be toggled by user-settable keybinding (default is `Super`+`Shift`+`c`), or by clicking the new focus-mode button in the topbar:
+Focus modes can be toggled by user-settable keybinding (default is `Super`+`Shift`+`c`), or by clicking the new focus-mode button in the Top Bar:
 
 ![Focus mode button](media/focus-mode-button.png)
 
@@ -358,15 +361,15 @@ Setting | Description | Input Type | Default value
 --------|-------------|------------|--------------
 <code>workspace&#8209;colors</code>  | Sets the workspace background color palette. | _String array of colors_ | `['#314E6C', '#565248', '#445632', '#663822', '#494066',   '#826647', '#4B6983', '#807D74', '#5D7555', '#884631', '#625B81', '#B39169', '#7590AE', '#BAB5AB', '#83A67F', '#C1665A', '#887FA3', '#E0C39E']`
 
-## Gnome TopBar opacity / styling ##
+## Gnome Top Bar opacity / styling ##
 
-PaperWM by default changes the opacity of the Gnome TopBar.  This styling is used for certain PaperWM features.  However, this styling may conflict with the TopBar styling of other extensions (that you may prefer have style the TopBar instead).
+PaperWM by default changes the opacity of the Gnome Top Bar.  This styling is used for certain PaperWM features.  However, this styling may conflict with the Top Bar styling of other extensions (that you may prefer have style the Top Bar instead).
 
-Users can disable PaperWM's ability to change TopBar styling from PaperWM settings:
+Users can disable PaperWM's ability to change GNOME Top Bar styling from PaperWM settings:
 
-<img alt="Enable TopBar Styling" src="media/topbar-styling.png" width="560px">
+<img alt="Enable Top Bar Styling" src="media/topbar-styling.png" width="560px">
 
-_Note: several PaperWM specific features are dependent on changing the Gnome TopBar to function correctly.  If you choose to disable PaperWM's ability to change the TopBar styles (with the setting above), you may also want to disable the [Window Position Bar](#window-position-bar-colored-bar-segment-in-top-bar)_.
+_Note: several PaperWM specific features are dependent on changing the Gnome Top Bar to function correctly.  If you choose to disable PaperWM's ability to change the Top Bar styles (with the setting above), you may also want to disable the [Window Position Bar](#window-position-bar-colored-bar-segment-in-top-bar)_.
 
 ## Recommended Gnome Shell Settings ##
 

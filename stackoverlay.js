@@ -171,7 +171,7 @@ export class StackOverlay {
 
         this._direction = direction;
 
-        let overlay = new Clutter.Actor({
+        const overlay = new Clutter.Actor({
             reactive: true,
             name: "stack-overlay",
         });
@@ -181,7 +181,7 @@ export class StackOverlay {
         // overlay.opacity = 100;
 
         this.monitor = monitor;
-        let panelBox = Main.layoutManager.panelBox;
+        const panelBox = Main.layoutManager.panelBox;
         overlay.y = monitor.y + panelBox.height + Settings.prefs.vertical_margin;
         overlay.height = this.monitor.height - panelBox.height - Settings.prefs.vertical_margin;
         overlay.width = Tiling.stack_margin;
@@ -366,8 +366,8 @@ export class StackOverlay {
         }
 
         let [x, y] = global.get_pointer();
-        let actor = this.target.get_compositor_private();
-        let clone = new Clutter.Clone({ source: actor });
+        const actor = this.target.get_compositor_private();
+        const clone = new Clutter.Clone({ source: actor });
         this.clone = clone;
 
         // Remove any window clips, and show the metaWindow.clone's
@@ -380,9 +380,9 @@ export class StackOverlay {
         clone.set_scale(scale, scale);
         Main.uiGroup.add_child(clone);
 
-        let monitor = this.monitor;
-        let scaleWidth = scale * clone.width;
-        let scaleHeight = scale * clone.height;
+        const monitor = this.monitor;
+        const scaleWidth = scale * clone.width;
+        const scaleHeight = scale * clone.height;
         if (this._direction === Meta.MotionDirection.RIGHT) {
             x = monitor.x + monitor.width - scaleWidth;
         }
@@ -394,7 +394,7 @@ export class StackOverlay {
         y -= (scale * clone.height) / 2;
 
         // bound to remain within view
-        let workArea = this.getWorkArea();
+        const workArea = this.getWorkArea();
         y = Math.max(y, workArea.y);
         y = Math.min(y, workArea.y + workArea.height - scaleHeight);
 

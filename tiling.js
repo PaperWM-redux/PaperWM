@@ -91,7 +91,7 @@ let signals, backgroundGroup, grabSignals;
 let gsettings, backgroundSettings, interfaceSettings;
 let displayConfig;
 let saveState;
-let startupTimeoutId, timerId, fullscrenStartTimeout, stackSlurpTimeout;
+let startupTimeoutId, timerId, fullscreenStartTimeout, stackSlurpTimeout, workspaceChangeTimeouts;
 let workspaceSettings;
 export let inGrab;
 export function enable(extension) {
@@ -110,6 +110,8 @@ export function enable(extension) {
 
     signals = new Utils.Signals();
     grabSignals = new Utils.Signals();
+
+    workspaceChangeTimeouts = []; // init array to hold timeouts
 
     // setup actions on gap changes
     let marginsGapChanged = () => {
@@ -201,15 +203,17 @@ export function enable(extension) {
     }
 }
 
-export function disable () {
+export function disable() {
     Utils.timeout_remove(startupTimeoutId);
     startupTimeoutId = null;
     Utils.timeout_remove(timerId);
     timerId = null;
-    Utils.timeout_remove(fullscrenStartTimeout);
-    fullscrenStartTimeout = null;
+    Utils.timeout_remove(fullscreenStartTimeout);
+    fullscreenStartTimeout = null;
     Utils.timeout_remove(stackSlurpTimeout);
     stackSlurpTimeout = null;
+    workspaceChangeTimeouts?.forEach(t => Utils.timeout_remove(t));
+    workspaceChangeTimeouts = null;
 
     grabSignals.destroy();
     grabSignals = null;
@@ -243,7 +247,7 @@ export class Space extends Array {
     /** @type {import('@gi-types/meta').BackgroundActor} */
     background;
 
-    constructor (workspace, container, doInit) {
+    constructor(workspace, container, doInit) {
         super(0);
         this.workspace = workspace;
         this.signals = new Utils.Signals();
@@ -269,6 +273,7 @@ export class Space extends Array {
         let clip = new Clutter.Actor({ name: "clip" });
         this.clip = clip;
         let actor = new Clutter.Actor({ name: "space-actor" });
+        actor.set_pivot_point(0.5, 0);
 
         this._visible = true;
         this.hide(); // We keep the space actor hidden when inactive due to performance
@@ -299,12 +304,12 @@ export class Space extends Array {
             }
         });
         this.workspaceIndicator = workspaceIndicator;
-        let workspaceLabel = new St.Label();
+        const workspaceLabel = new St.Label();
         workspaceIndicator.add_child(workspaceLabel);
         this.workspaceLabel = workspaceLabel;
         workspaceLabel.hide();
 
-        let selection = new St.Widget({
+        const selection = new St.Widget({
             name: 'selection',
             style_class: 'paperwm-selection tile-preview',
         });
@@ -329,7 +334,7 @@ export class Space extends Array {
         this.border.hide();
 
         let monitor = Main.layoutManager.primaryMonitor;
-        let prevSpace = saveState.prevSpaces.get(workspace);
+        const prevSpace = saveState.prevSpaces.get(workspace);
         this.targetX = 0;
         if (prevSpace && prevSpace.monitor) {
             let prevMonitor = Main.layoutManager.monitors[prevSpace.monitor.index];
@@ -337,8 +342,8 @@ export class Space extends Array {
                 monitor = prevMonitor;
         }
 
+        // init workspace settings from preferences
         this.setSettings(workspaceSettings.getWorkspaceSettings(this.index));
-        actor.set_pivot_point(0.5, 0);
 
         this.selectedWindow = null;
         this.leftStack = 0; // not implemented
@@ -354,15 +359,18 @@ export class Space extends Array {
         });
         this.windowPositionBar.hide(); // default on empty space
         Utils.actor_raise(this.windowPositionBar);
-        if (Settings.prefs.show_window_position_bar) {
+
+
+        if (this.showPositionBar) {
             this.enableWindowPositionBar();
         }
 
         // now set monitor for this space
         this.setMonitor(monitor);
 
-        if (doInit)
+        if (doInit) {
             this.init();
+        }
     }
 
     init() {
@@ -495,13 +503,18 @@ export class Space extends Array {
                 w.clone.cloneActor.source = null;
     }
 
+    /**
+     * Returns current workArea parameters for this space.
+     * @returns object with x, y, width, and height values for this WorkArea.
+     */
     workArea() {
         let workArea = Main.layoutManager.getWorkAreaForMonitor(this.monitor.index);
-        workArea.x -= this.monitor.x;
-        workArea.y -= this.monitor.y;
-        workArea.height -= Settings.prefs.vertical_margin + Settings.prefs.vertical_margin_bottom;
-        workArea.y += Settings.prefs.vertical_margin;
-        return workArea;
+        return {
+            x: workArea.x - this.monitor.x,
+            y: workArea.y - this.monitor.y + Settings.prefs.vertical_margin,
+            width: workArea.width,
+            height: workArea.height - Settings.prefs.vertical_margin - Settings.prefs.vertical_margin_bottom,
+        };
     }
 
     layoutGrabColumn(column, x, y0, targetWidth, availableHeight, time, grabWindow) {
@@ -658,18 +671,33 @@ export class Space extends Array {
          * If current window is fullscreened, then treat workarea as fullscreen (y = 0).
          * This a "flash of topbar spacing") before consecutive layout call resolves.
          */
-        if (this.selectedWindow?.fullscreen) {
+        const panelBoxHeight = Topbar.panelBox.height;
+        const primaryMonitor = Main.layoutManager.primaryMonitor;
+        switch (true) {
+        case this.selectedWindow?.fullscreen:
             workArea.y = 0;
             this.setSpaceTopbarElementsVisible(false);
+            break;
+        case this.monitor === primaryMonitor: {
+            if (!this.showTopBar) {
+                // remove panelbox height
+                workArea.y -= panelBoxHeight;
+                workArea.height += panelBoxHeight;
+
+                if (this.showPositionBar) {
+                    // add panelbox height if need to show window position bar
+                    workArea.y += panelBoxHeight;
+                    workArea.height -= panelBoxHeight;
+                }
+            }
+            break;
         }
-        // compensate to keep window position bar on all monitors
-        else if (Settings.prefs.show_window_position_bar) {
-            const panelBoxHeight = Topbar.panelBox.height;
-            const monitor = Main.layoutManager.primaryMonitor;
-            if (monitor !== this.monitor) {
+        default:
+            if (this.showPositionBar) {
                 workArea.y += panelBoxHeight;
                 workArea.height -= panelBoxHeight;
             }
+            break;
         }
 
         let availableHeight = workArea.height;
@@ -746,7 +774,7 @@ export class Space extends Array {
                 this.targetX = min + Math.round((workArea.width - width) / 2);
             } else if (this.targetX + width < min + workArea.width) {
                 this.targetX = min + workArea.width - width;
-            } else if (this.targetX > workArea.min ) {
+            } else if (this.targetX > workArea.min) {
                 this.targetX = workArea.x;
             }
             Easer.addEase(this.cloneContainer,
@@ -944,7 +972,7 @@ export class Space extends Array {
     }
 
     removeWindow(metaWindow) {
-        let index = this.indexOf(metaWindow);
+        const index = this.indexOf(metaWindow);
         if (index === -1)
             return this.removeFloating(metaWindow);
 
@@ -959,20 +987,26 @@ export class Space extends Array {
             this.selectedWindow = stack[stack.length - 1];
         }
 
-        let column = this[index];
-        let row = column.indexOf(metaWindow);
+        const column = this[index];
+        const row = column.indexOf(metaWindow);
         column.splice(row, 1);
-        if (column.length === 0)
+        if (column.length === 0) {
             this.splice(index, 1);
+        }
 
         this.visible.splice(this.visible.indexOf(metaWindow), 1);
 
-        let clone = metaWindow.clone;
-        this.cloneContainer.remove_child(clone);
+        const clone = metaWindow.clone;
+        // this.cloneContainer.remove_child(clone);
+        Utils.actor_remove_child(this.cloneContainer, clone);
+
         // Don't destroy the selection highlight widget
-        if (clone.first_child.name === 'selection')
-            clone.remove_child(clone.first_child);
-        let actor = metaWindow.get_compositor_private();
+        if (clone.first_child.name === 'selection') {
+            // clone.remove_child(clone.first_child);
+            Utils.actor_remove_child(clone, clone.first_child);
+        }
+
+        const actor = metaWindow.get_compositor_private();
         if (actor)
             actor.remove_clip();
 
@@ -1007,7 +1041,8 @@ export class Space extends Array {
         if (i === -1)
             return false;
         this._floating.splice(i, 1);
-        this.actor.remove_child(metaWindow.clone);
+        // this.actor.remove_child(metaWindow.clone);
+        Utils.actor_remove_child(this.actor, metaWindow.clone);
         return true;
     }
 
@@ -1295,7 +1330,7 @@ export class Space extends Array {
         }
     }
 
-    moveDone(focusedWindowCallback = _focusedWindow => {}) {
+    moveDone(focusedWindowCallback = _focusedWindow => { }) {
         if (this.cloneContainer.x !== this.targetX ||
             this.actor.y !== 0 ||
             Navigator.navigating || inPreview ||
@@ -1478,7 +1513,6 @@ export class Space extends Array {
             this.updateBackground();
         }
         this.updateName();
-        this.updateShowTopBar();
         this.signals.connect(this.settings, 'changed::name', this.updateName.bind(this));
         this.signals.connect(this.settings, 'changed::color', () => {
             this.updateColor();
@@ -1486,10 +1520,20 @@ export class Space extends Array {
         });
         this.signals.connect(this.settings, 'changed::background',
             this.updateBackground.bind(this));
+
+        this.updateShowTopBar();
         this.signals.connect(gsettings, 'changed::default-show-top-bar',
             this.showTopBarChanged.bind(this));
-        this.signals.connect(this.settings, 'changed::show-top-bar',
-            this.showTopBarChanged.bind(this));
+        this.signals.connect(this.settings, 'changed::show-top-bar', () => {
+            this.showTopBarChanged();
+            this.layout(false);
+        });
+
+        this.updateShowPositionBar();
+        this.signals.connect(this.settings, 'changed::show-position-bar', () => {
+            this.showPositionBarChanged();
+            this.layout(false);
+        });
     }
 
     /**
@@ -1497,41 +1541,68 @@ export class Space extends Array {
      * default-show-top-bar setting.
      * @returns Boolean
      */
-    getShowTopBarSetting() {
-        let showTopBar = Settings.prefs.default_show_top_bar;
-        let userValue = this.settings.get_user_value('show-top-bar');
-        if (userValue) {
-            showTopBar = userValue.unpack();
+    _getShowTopBarSetting() {
+        const value = Settings.prefs.default_show_top_bar;
+        let userValue = true;
+        try {
+            userValue = this.settings.get_boolean('show-top-bar');
+        } catch (error) {
+
         }
-
-        return showTopBar;
-    }
-
-    showTopBarChanged() {
-        let showTopBar = this.getShowTopBarSetting();
-
-        // remove window position bar actors
-        this.actor.remove_child(this.windowPositionBarBackdrop);
-        this.actor.remove_child(this.windowPositionBar);
-        if (showTopBar) {
-            this.actor.add_child(this.windowPositionBarBackdrop);
-            this.actor.add_child(this.windowPositionBar);
-        }
-
-        this.updateShowTopBar();
+        return value && userValue;
     }
 
     updateShowTopBar() {
-        let showTopBar = this.getShowTopBarSetting();
-
-        if (showTopBar) {
-            this.showTopBar = 1;
-        } else {
-            this.showTopBar = 0;
-        }
+        this.showTopBar = this._getShowTopBarSetting();
         this._populated && Topbar.fixTopBar();
+    }
 
-        this.layout();
+    showTopBarChanged() {
+        this._removeAddPositionBar();
+        this.updateShowTopBar();
+    }
+
+    /**
+     * Removes the window position bar actor, and re-adds if needed.
+     */
+    _removeAddPositionBar() {
+        // remove window position bar actors
+        Utils.actor_remove_child(this.actor, this.windowPositionBarBackdrop);
+        Utils.actor_remove_child(this.actor, this.windowPositionBar);
+
+        // adds them is should show for this space
+        if (this._getShowPositionBar()) {
+            // this.actor.add_child(this.windowPositionBarBackdrop);
+            // this.actor.add_child(this.windowPositionBar);
+            Utils.actor_add_child(this.actor, this.windowPositionBarBackdrop);
+            Utils.actor_add_child(this.actor, this.windowPositionBar);
+        }
+    }
+
+    /**
+     * Returns the show-position-bar (workspace) setting.
+     * @returns Boolean
+     */
+    _getShowPositionBar() {
+        const value = Settings.prefs.show_window_position_bar;
+        let userValue = true;
+        try {
+            userValue = this.settings.get_boolean('show-position-bar');
+        } catch (error) {
+
+        }
+        return value && userValue;
+    }
+
+    updateShowPositionBar() {
+        this.showPositionBar = this._getShowPositionBar();
+        Topbar.fixStyle();
+    }
+
+    showPositionBarChanged() {
+        this._removeAddPositionBar();
+        this.updateShowPositionBar();
+        this.setSpaceTopbarElementsVisible(true);
     }
 
     /**
@@ -1604,31 +1675,33 @@ border-radius: ${borderWidth}px;
      * @param {boolean} enable
      */
     enableWindowPositionBar(enable = true) {
-        const add =
-            enable &&
-            Settings.prefs.show_window_position_bar;
+        const add = enable && this.showPositionBar;
         if (add) {
-            [this.windowPositionBarBackdrop, this.windowPositionBar]
-                .forEach(i => {
-                    if (!i.get_parent()) {
-                        this.actor.add_child(i);
-                    }
-                });
+            // [this.windowPositionBarBackdrop, this.windowPositionBar]
+            //     .forEach(i => {
+            //         if (!i.get_parent()) {
+            //             this.actor.add_child(i);
+            //         }
+            //     });
+            Utils.actor_add_child(this.actor, this.windowPositionBarBackdrop);
+            Utils.actor_add_child(this.actor, this.windowPositionBar);
             this.updateWindowPositionBar();
         }
         else {
-            [this.windowPositionBarBackdrop, this.windowPositionBar]
-                .forEach(i => {
-                    if (i.get_parent()) {
-                        this.actor.remove_child(i);
-                    }
-                });
+            // [this.windowPositionBarBackdrop, this.windowPositionBar]
+            //     .forEach(i => {
+            //         if (i.get_parent()) {
+            //             this.actor.remove_child(i);
+            //         }
+            //     });
+            Utils.actor_remove_child(this.actor, this.windowPositionBarBackdrop);
+            Utils.actor_remove_child(this.actor, this.windowPositionBar);
         }
     }
 
     updateWindowPositionBar() {
         // if pref show-window-position-bar, exit
-        if (!Settings.prefs.show_window_position_bar) {
+        if (!this.showPositionBar) {
             return;
         }
 
@@ -1678,6 +1751,13 @@ border-radius: ${borderWidth}px;
             }
         };
 
+        // if windowPositionBar is disabled ==> don't show elements
+        if (!this.showPositionBar) {
+            setVisible(false);
+            this.enableWindowPositionBar(false);
+            return;
+        }
+
         if (this.selectedWindow?.fullscreen) {
             setVisible(false);
             this.enableWindowPositionBar(false);
@@ -1686,12 +1766,6 @@ border-radius: ${borderWidth}px;
 
         if (this.hasTopBar && inPreview) {
             Topbar.setTransparentStyle();
-        }
-
-        // if windowPositionBar is disabled ==> don't show elements
-        if (!Settings.prefs.show_window_position_bar) {
-            setVisible(false);
-            return;
         }
 
         // if on different monitor then override to show elements
@@ -2013,7 +2087,7 @@ border-radius: ${borderWidth}px;
     // Fix for eg. space.map, see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes#Species
     static get [Symbol.species]() { return Array; }
 
-    selectedIndex () {
+    selectedIndex() {
         if (this.selectedWindow) {
             return this.indexOf(this.selectedWindow);
         } else {
@@ -2188,7 +2262,7 @@ export const Spaces = class Spaces extends Map {
 
             this.spaceContainer.show();
             Topbar.refreshWorkspaceIndicator();
-            this.setSpaceTopbarElementsVisible();
+            this.forEach(s => s.setSpaceTopbarElementsVisible());
             Stackoverlay.multimonitorSupport();
         };
 
@@ -2227,7 +2301,7 @@ export const Spaces = class Spaces extends Map {
         let prevNSpaces = saveState?.prevSpaces?.size ?? 0;
         let addSpaces = Math.max(0, prevNSpaces - workspaceManager.n_workspaces);
         console.info(`nPrevSpaces ${prevNSpaces}, current nSpaces ${workspaceManager.n_workspaces}, need to add ${addSpaces}`);
-        for (let i = 0; i < addSpaces; i++ ) {
+        for (let i = 0; i < addSpaces; i++) {
             workspaceManager.append_new_workspace(false, global.get_current_time());
         }
 
@@ -2377,7 +2451,7 @@ export const Spaces = class Spaces extends Map {
      * Return true if there are less-than-or-equal-to spaces than monitors.
      */
     lteSpacesThanMonitors(onFalseCallback) {
-        const cb = onFalseCallback ?? function(_nSpaces, _nMonitors) {};
+        const cb = onFalseCallback ?? function (_nSpaces, _nMonitors) { };
         const nSpaces = [...this].length;
         const nMonitors = Main.layoutManager.monitors.length;
 
@@ -2474,7 +2548,7 @@ export const Spaces = class Spaces extends Map {
         // });
 
         // ensure after swapping that the space elements are shown correctly
-        this.setSpaceTopbarElementsVisible(true, { force: true });
+        this.forEach(s => s.setSpaceTopbarElementsVisible(true, { force: true }));
     }
 
     swapMonitor(direction, backDirection, options = {}) {
@@ -2542,7 +2616,7 @@ export const Spaces = class Spaces extends Map {
         // });
 
         // ensure after swapping that the space elements are shown correctly
-        this.setSpaceTopbarElementsVisible(true, { force: true });
+        this.forEach(s => s.setSpaceTopbarElementsVisible(true, { force: true }));
     }
 
     switchWorkspace(wm, fromIndex, toIndex, animate = false) {
@@ -2590,7 +2664,7 @@ export const Spaces = class Spaces extends Map {
         let monitor = toSpace.monitor;
         this.setMonitors(monitor, toSpace, true);
 
-        this.setSpaceTopbarElementsVisible();
+        this.forEach(s => s.setSpaceTopbarElementsVisible());
         let doAnimate = animate || this.space_paperwmAnimation;
         this.animateToSpace(
             toSpace,
@@ -2602,16 +2676,6 @@ export const Spaces = class Spaces extends Map {
         this.touchSignal = signals.connect(Main.panel, "captured-event", Gestures.horizontalTouchScroll.bind(toSpace));
 
         inPreview = PreviewMode.NONE;
-    }
-
-    /**
-     * See Space.setSpaceTopbarElementsVisible function for what this does.
-     * @param {boolean} visible
-     */
-    setSpaceTopbarElementsVisible(visible = false, options = {}) {
-        this.forEach(s => {
-            s.setSpaceTopbarElementsVisible(visible, options);
-        });
     }
 
     _getOrderedSpaces(monitor) {
@@ -2706,7 +2770,7 @@ export const Spaces = class Spaces extends Map {
             Main.panel.statusArea.appMenu.container.hide();
         }
 
-        this.setSpaceTopbarElementsVisible(true);
+        this.forEach(s => s.setSpaceTopbarElementsVisible(true));
         this._animateToSpaceOrdered(this.selectedSpace, false);
 
         let selected = this.selectedSpace.selectedWindow;
@@ -2822,7 +2886,7 @@ export const Spaces = class Spaces extends Map {
         let monitor = space.monitor;
         this.selectedSpace = space;
 
-        this.setSpaceTopbarElementsVisible(true);
+        this.forEach(s => s.setSpaceTopbarElementsVisible(true));
         let cloneParent = space.clip.get_parent();
         mru.forEach((space, i) => {
             space.startAnimate();
@@ -2940,7 +3004,7 @@ export const Spaces = class Spaces extends Map {
 
         mru.forEach((space, i) => {
             let actor = space.actor;
-            let h, onComplete = () => {};
+            let h, onComplete = () => { };
             if (to === i)
                 h = StackPositions.selected;
             else if (to + 1 === i)
@@ -2976,7 +3040,7 @@ export const Spaces = class Spaces extends Map {
 
         Topbar.updateWorkspaceIndicator(to.index);
         if (to.hasTopBar) {
-            if (Settings.prefs.show_window_position_bar) {
+            if (to.showPositionBar) {
                 Topbar.setNoBackgroundStyle();
             } else {
                 Topbar.setTransparentStyle();
@@ -3187,30 +3251,10 @@ export const Spaces = class Spaces extends Map {
           somewhat more stable on X11, but there's at minimum some racing with
           `wm_class` which can break the users winprop rules.
         */
-        signals.connectOneShot(actor, 'first-frame', () =>  {
+        signals.connectOneShot(actor, 'first-frame', () => {
             allocateClone(metaWindow);
             insertWindow(metaWindow, { existing: false });
         });
-    }
-
-    /**
-     * Checks whether the window position bar should be enabled.
-     */
-    showWindowPositionBarChanged() {
-        if (Settings.prefs.show_window_position_bar) {
-            this.forEach(s => {
-                s.enableWindowPositionBar();
-            });
-        }
-
-        if (!Settings.prefs.show_window_position_bar) {
-            // should be in normal topbar mode
-            this.forEach(s => {
-                s.enableWindowPositionBar(false);
-            });
-        }
-
-        Topbar.fixStyle();
     }
 };
 Signals.addSignalMethods(Spaces.prototype);
@@ -3341,8 +3385,8 @@ export function registerWindow(metaWindow) {
         // if window is in a column, expel it
         barf(metaWindow, metaWindow);
 
-        Topbar.fixTopBar();
-        spaces.spaceOfWindow(metaWindow)?.setSpaceTopbarElementsVisible(true);
+        const space = spaces.spaceOfWindow(metaWindow);
+        space?.setSpaceTopbarElementsVisible(true);
     });
     signals.connect(metaWindow, 'notify::minimized', metaWindow => {
         minimizeHandler(metaWindow);
@@ -3370,7 +3414,7 @@ export function registerWindow(metaWindow) {
     });
 
     /**
-     * Ensures when moving window that it's targetHeight is met.
+     * Check when moving window that it's targetHeight is correct.
      */
     signals.connect(actor, 'stage-views-changed', _actor => {
         const f = metaWindow.get_frame_rect();
@@ -3379,8 +3423,47 @@ export function registerWindow(metaWindow) {
         }
     });
 
-    signals.connect(actor, 'destroy', destroyHandler);
+    /**
+     * Not all applications (and application states) work well with `stage-views-change`
+     * actor signal (and the resizeHandler).  For example, some apps if too wide
+     * (e.g. full width of tiling window) won't get detected with `stage-views-changed`
+     * signal when it's workspace has changed (e.g. keybind to move to another monitor).
+     * The below works around this issue by continually (up to a number of tries)
+     * checking the height and resizing.
+     */
+    const done = t => {
+        const index = workspaceChangeTimeouts.indexOf(t);
+        workspaceChangeTimeouts.splice(index, 1);
+        // console.log(`num workspaceChangeTimeouts ${workspaceChangeTimeouts.length}`);
+    };
+    signals.connect(metaWindow, 'workspace-changed', mw => {
+        if (!isTiled(mw)) {
+            return;
+        }
 
+        let tries = 0;
+        const timeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            if (tries >= 10) {
+                done(timeout);
+                return false;
+            }
+            tries++;
+            // console.log(`try ${tries} height check on ${metaWindow.title}`);
+            const f = metaWindow.get_frame_rect();
+            if (metaWindow._targetHeight !== f.height) {
+                if (!isNaN(metaWindow._targetHeight)) {
+                    metaWindow.move_resize_frame(true, f.x, f.y, f.width, metaWindow._targetHeight);
+                }
+                return true;
+            }
+
+            done(timeout);
+            return false;
+        });
+        workspaceChangeTimeouts.push(timeout);
+    });
+
+    signals.connect(actor, 'destroy', destroyHandler);
     return true;
 }
 
@@ -3558,7 +3641,7 @@ export function resizeHandler(metaWindow) {
 
     if (needLayout && !space._inLayout) {
         // Restore window position when eg. exiting fullscreen
-        let callback = () => {};
+        let callback = () => { };
         if (addCallback && !Navigator.navigating && selected) {
             callback = () => {
                 moveTo(x, true);
@@ -3852,11 +3935,11 @@ export function insertWindow(metaWindow, { existing }) {
         if (metaWindow.fullscreen) {
             animateWindow(metaWindow);
             callbackOnActorShow(actor, () => {
-                fullscrenStartTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                fullscreenStartTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
                     metaWindow.unmake_fullscreen();
                     showWindow(metaWindow);
                     metaWindow.make_fullscreen();
-                    fullscrenStartTimeout = null;
+                    fullscreenStartTimeout = null;
                     return false; // on return false destroys timeout
                 });
             });
@@ -4035,7 +4118,7 @@ export function ensuredX(meta_window, space) {
         if (index === 0 && space.length === 1)
             x = min + Math.round((workArea.width - frame.width) / 2);
         else if (index === 0 || (Math.abs(x - min) < Math.abs(x + frame.width - max) &&
-                                 index !== space.length - 1))
+            index !== space.length - 1))
             x = min + Settings.prefs.horizontal_margin;
         else
             x = max - Settings.prefs.horizontal_margin - frame.width;
@@ -4075,7 +4158,7 @@ export function ensureViewport(meta_window, space, options = {}) {
     let moveto = options?.moveto ?? true;
     let animate = options?.animate ?? true;
     let ensureAnimation = options.ensureAnimation ?? Settings.EnsureViewportAnimation.TRANSLATE;
-    let callback = options.callback ?? function() {};
+    let callback = options.callback ?? function () { };
 
     let index = space.indexOf(meta_window);
     if (index === -1 || space.length === 0)
@@ -4159,7 +4242,7 @@ export function move_to(space, metaWindow, options = {}) {
     let force = options.force ?? false;
     let animate = options.animate ?? true;
     let ensureAnimation = options.ensureAnimation ?? Settings.EnsureViewportAnimation.TRANSLATE;
-    let callback = options.callback ?? function() {};
+    let callback = options.callback ?? function () { };
     if (space.indexOf(metaWindow) === -1)
         return;
 
@@ -4897,8 +4980,8 @@ export function allocateDefault(column, availableHeight, selectedWindow) {
         let availableForNonSelected = Math.max(
             0,
             availableHeight -
-                (column.length - 1) * gap -
-                (selectedWindow ? selectedHeight : 0)
+            (column.length - 1) * gap -
+            (selectedWindow ? selectedHeight : 0)
         );
 
         const deficit = Math.max(
@@ -5116,7 +5199,8 @@ export function takeWindow(metaWindow, space, params) {
     const animateTake = (window, existing) => {
         navigator._moving.push(window);
         if (!existing) {
-            backgroundGroup.add_child(metaWindow.clone);
+            // backgroundGroup.add_child(metaWindow.clone);
+            Utils.actor_add_child(backgroundGroup, metaWindow.clone);
         }
 
         const lowest = navigator._moving[navigator._moving.length - 2];
@@ -5216,7 +5300,6 @@ export function takeWindow(metaWindow, space, params) {
                     return false;
                 }
             });
-
 
         signals.connectOneShot(navigator, 'destroy', () => {
             navigator.showTakeHint(false);

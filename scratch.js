@@ -220,8 +220,10 @@ export function animateWindows() {
     let ws = getScratchWindows().filter(w => !w.minimized);
     ws = global.display.sort_windows_by_stacking(ws);
     for (let w of ws) {
-        let parent = w.clone.get_parent();
-        parent && parent.remove_child(w.clone);
+        // let parent = w.clone.get_parent();
+        // parent && parent.remove_child(w.clone);
+        Utils.actor_remove_parent(w.clone);
+
         Main.uiGroup.insert_child_above(w.clone, global.window_group);
         let f = w.get_frame_rect();
         w.clone.set_position(f.x, f.y);

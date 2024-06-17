@@ -103,7 +103,8 @@ export class Minimap extends Array {
         column.splice(row, 1);
         if (column.length === 0)
             this.splice(index, 1);
-        this.container.remove_child(clone);
+        // this.container.remove_child(clone);
+        Utils.actor_remove_child(this.container, clone);
         this.layout();
     }
 
@@ -148,9 +149,9 @@ export class Minimap extends Array {
     }
 
     createClone(mw) {
-        let windowActor = mw.get_compositor_private();
-        let clone = new Clutter.Clone({ source: windowActor });
-        let container = new Clutter.Actor({
+        const windowActor = mw.get_compositor_private();
+        const clone = new Clutter.Clone({ source: windowActor });
+        const container = new Clutter.Actor({
             // layout_manager: new WindowCloneLayout(this),
             name: "window-clone-container",
         });

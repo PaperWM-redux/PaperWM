@@ -169,8 +169,7 @@ export function keystrToKeycombo(keystr) {
         aboveTab = true;
     }
 
-    let [ok, key, mask] = accelerator_parse(keystr);
-
+    let [, key, mask] = accelerator_parse(keystr);
     if (aboveTab)
         key = META_KEY_ABOVE_TAB;
     return `${key}|${mask}`; // Since js doesn't have a mapable tuple type
@@ -273,7 +272,7 @@ export function overrideConflicts(checkKey = null) {
     const foundConflicts = findConflicts();
     for (let conflict of foundConflicts) {
         // save conflicts (list of names of conflicting keybinds)
-        let { name, conflicts, settings } = conflict;
+        let { conflicts, settings } = conflict;
 
         conflicts.forEach(c => {
             // get current value

@@ -134,8 +134,7 @@ export function toggleWindowBoxes(metaWindow) {
         return frameBox;
     };
 
-    let boxes = [];
-
+    const boxes = [];
     boxes.push(makeFrameBox(frame, "red"));
     boxes.push(makeFrameBox(inputFrame, "blue"));
 
@@ -145,7 +144,6 @@ export function toggleWindowBoxes(metaWindow) {
     }
 
     boxes.forEach(box => global.stage.add_child(box));
-
     metaWindow._paperDebugBoxes = boxes;
     return boxes;
 }
@@ -375,11 +373,47 @@ export function actor_raise(actor, above) {
 }
 
 export function actor_reparent(actor, newParent) {
+    actor_remove_parent(actor);
+    newParent.add_child(actor);
+}
+
+/**
+ * Removes a child from a parent actor.  Checks child
+ * exists in parent first.
+ * @param {Clutter.Actor} parent
+ * @param {Clutter.Actor} child
+ */
+export function actor_remove_child(parent, child) {
+    if (parent.get_children().includes(child)) {
+        parent.remove_child(child);
+    }
+}
+
+/**
+ * Removes the parent from this actor (if it has one).
+ * @param {Clutter.Actor} actor
+ */
+export function actor_remove_parent(actor) {
     const parent = actor.get_parent();
     if (parent) {
         parent.remove_child(actor);
     }
-    newParent.add_child(actor);
+}
+
+/**
+ * Adds a child from a parent actor.  Checks child if is already
+ * attached.
+ * @param {Clutter.Actor} parent
+ * @param {Clutter.Actor} child
+ */
+export function actor_add_child(parent, child) {
+    // check if already a child of this parent
+    if (parent.get_children().includes(child)) {
+        return;
+    }
+
+    actor_remove_parent(child);
+    parent.add_child(child);
 }
 
 /**
