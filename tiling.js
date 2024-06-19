@@ -3264,18 +3264,17 @@ Signals.addSignalMethods(Spaces.prototype);
  * @param metaWindow
  */
 export function isTiled(metaWindow) {
-    if (!metaWindow) {
+    if (
+        !metaWindow ||
+        metaWindow?.is_on_all_workspaces() ||
+        isFloating(metaWindow) ||
+        isScratch(metaWindow) ||
+        isTransient(metaWindow)
+    ) {
         return false;
     }
 
-    if (!isFloating(metaWindow) &&
-        !isScratch(metaWindow) &&
-        !isTransient(metaWindow)) {
-        return true;
-    }
-    else {
-        return false;
-    }
+    return true;
 }
 
 /**
