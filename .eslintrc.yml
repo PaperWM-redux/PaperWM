@@ -120,7 +120,7 @@ rules:
     - error
     - allow:
       - '!!'
-  no-invalid-this: error
+  # no-invalid-this: error
   no-iterator: error
   no-label-var: error
   no-lonely-if: error

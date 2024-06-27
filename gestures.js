@@ -195,7 +195,7 @@ export function gestureWorkspaceFingers() {
    connected from each space.background and bound to the space.
  */
 let start, dxs = [], dts = [];
-export function horizontalScroll(space, actor, event) {
+export function horizontalScroll(space, _actor, event) {
     if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE) {
         return Clutter.EVENT_PROPAGATE;
     }
@@ -217,7 +217,7 @@ export function horizontalScroll(space, actor, event) {
     }
 
     const phase = event.get_gesture_phase();
-    const [dx, dy] = event.get_gesture_motion_delta();
+    const [dx] = event.get_gesture_motion_delta();
     switch (phase) {
     case Clutter.TouchpadGesturePhase.UPDATE:
         if (direction === undefined) {
@@ -247,9 +247,9 @@ export function horizontalScroll(space, actor, event) {
  */
 let walk = 0;
 let sdx = null;
-export function horizontalTouchScroll(actor, event) {
+export function horizontalTouchScroll(_actor, event) {
     const type = event.type();
-    const [myx, myy] = event.get_coords();
+    const [myx] = event.get_coords();
 
     switch (type) {
     case Clutter.EventType.TOUCH_BEGIN:
@@ -265,7 +265,7 @@ export function horizontalTouchScroll(actor, event) {
         direction = DIRECTIONS.Horizontal;
         update(this, 0, event.get_time());
         return Clutter.EVENT_PROPAGATE;
-    case Clutter.EventType.TOUCH_UPDATE:
+    case Clutter.EventType.TOUCH_UPDATE: {
         let dx = 0;
         if (sdx !== null) {
             dx = myx - sdx;
@@ -280,6 +280,7 @@ export function horizontalTouchScroll(actor, event) {
          */
         update(this, -dx, event.get_time() * .75);
         return Clutter.EVENT_PROPAGATE;
+    }
     case Clutter.EventType.TOUCH_CANCEL:
     case Clutter.EventType.TOUCH_END:
         done(this, event);

@@ -267,7 +267,6 @@ export class Space extends Array {
                 switchToNextFocusMode(this);
             })
             .setVisible(false); // hide by default
-        this.showFocusModeIcon();
         this.unfocusXPosition = null; // init
 
         let clip = new Clutter.Actor({ name: "clip" });
@@ -284,23 +283,25 @@ export class Space extends Array {
         let cloneContainer = new St.Widget({ name: "clone-container" });
         this.cloneContainer = cloneContainer;
 
-        let workspaceIndicator = new St.Widget({
+        const workspaceIndicator = new St.Widget({
             reactive: true,
             name: 'panel',
             style_class: 'space-workspace-indicator',
         });
         signals.connect(workspaceIndicator, 'button-press-event', () => Main.overview.toggle());
         signals.connect(workspaceIndicator, 'scroll-event', (_actor, event) => {
-            let direction = event.get_scroll_direction();
+            const direction = event.get_scroll_direction();
             switch (direction) {
             case Clutter.ScrollDirection.DOWN:
                 spaces.selectSequenceSpace(Meta.MotionDirection.DOWN);
                 Navigator.getNavigator().finish();
-                break;
+                return Clutter.EVENT_STOP;
             case Clutter.ScrollDirection.UP:
                 spaces.selectSequenceSpace(Meta.MotionDirection.UP);
                 Navigator.getNavigator().finish();
-                break;
+                return Clutter.EVENT_STOP;
+            default:
+                return Clutter.EVENT_STOP;
             }
         });
         this.workspaceIndicator = workspaceIndicator;
@@ -352,6 +353,10 @@ export class Space extends Array {
         this.windowPositionBarBackdrop = new St.Widget({
             name: 'windowPositionBarBackdrop',
             style_class: 'paperwm-window-position-bar-backdrop',
+            reactive: true,
+        });
+        signals.connect(this.windowPositionBarBackdrop, 'scroll-event', (_actor, event) => {
+            Topbar.topBarScrollAction(event);
         });
         this.windowPositionBar = new St.Widget({
             name: 'windowPositionBar',
@@ -360,10 +365,8 @@ export class Space extends Array {
         this.windowPositionBar.hide(); // default on empty space
         Utils.actor_raise(this.windowPositionBar);
 
-
-        if (this.showPositionBar) {
-            this.enableWindowPositionBar();
-        }
+        this.showPositionBar && this.enableWindowPositionBar();
+        this.showFocusModeIcon();
 
         // now set monitor for this space
         this.setMonitor(monitor);
@@ -1913,7 +1916,7 @@ border-radius: ${borderWidth}px;
             });
 
         this.signals.connect(this.background, 'scroll-event',
-            (actor, event) => {
+            (_actor, event) => {
                 if (!inGrab && !Navigator.navigating)
                     return;
                 let dir = event.get_scroll_direction();
@@ -2198,7 +2201,7 @@ export const Spaces = class Spaces extends Map {
         this.forEach(space => space.init());
 
         // Bind to visible workspace when starting up
-        this.touchSignal = signals.connect(Main.panel, "captured-event", Gestures.horizontalTouchScroll.bind(this.activeSpace));
+        this.touchSignal = signals.connect(Main.panel, "touch-event", Gestures.horizontalTouchScroll.bind(this.activeSpace));
 
         this.stack = this.mru();
     }
@@ -2673,7 +2676,7 @@ export const Spaces = class Spaces extends Map {
 
         // Update panel to handle target workspace
         signals.disconnect(Main.panel, this.touchSignal);
-        this.touchSignal = signals.connect(Main.panel, "captured-event", Gestures.horizontalTouchScroll.bind(toSpace));
+        this.touchSignal = signals.connect(Main.panel, "touch-event", Gestures.horizontalTouchScroll.bind(toSpace));
 
         inPreview = PreviewMode.NONE;
     }

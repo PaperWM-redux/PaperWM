@@ -83,7 +83,7 @@ export function enable (extension) {
 
     screenSignals.push(
         workspaceManager.connect_after('workspace-switched',
-            (workspaceManager, from, to) => updateWorkspaceIndicator(to)));
+            (_workspaceManager, _from, to) => updateWorkspaceIndicator(to)));
 
     signals.connect(Main.overview, 'showing', fixTopBar);
     signals.connect(Main.overview, 'hidden', () => {
@@ -124,6 +124,10 @@ export function enable (extension) {
     //     fixTopBar();
     // });
 
+    signals.connect(Main.panel, 'scroll-event', (_actor, event) => {
+        topBarScrollAction(event);
+    });
+
     /**
      * Set clear-style when hiding overview.
      */
@@ -150,6 +154,48 @@ export function disable() {
     screenSignals = [];
     openPrefs = null;
     gsettings = null;
+}
+
+/**
+ * Action when mouse scrolling on topbar.
+ * @param {Clutter.event} event
+ * @returns
+ */
+export function topBarScrollAction(event) {
+    // if topbar workspaceMenu (indicator) has pointer, exit
+    if (menu && menu.has_pointer) {
+        return Clutter.EVENT_STOP;
+    }
+
+    // same check for gnome pill
+    const pill = Main.panel?.statusArea?.activities;
+    if (pill && pill.has_pointer) {
+        return Clutter.EVENT_STOP;
+    }
+
+    let direction = event.get_scroll_direction();
+    switch (direction) {
+    case Clutter.ScrollDirection.DOWN:
+        Tiling.spaces?.activeSpace.switchRight(false);
+        break;
+    case Clutter.ScrollDirection.UP:
+        Tiling.spaces?.activeSpace.switchLeft(false);
+        break;
+    }
+    const selected = Tiling.spaces?.activeSpace?.selectedWindow;
+    if (selected) {
+        let hasFocus = selected.has_focus();
+        selected.foreach_transient(mw => {
+            hasFocus = mw.has_focus() || hasFocus;
+        });
+        if (hasFocus) {
+            Tiling.focus_handler(selected);
+        } else {
+            Main.activateWindow(selected);
+        }
+    }
+
+    return Clutter.EVENT_STOP;
 }
 
 export function showWorkspaceMenu(show = false) {
