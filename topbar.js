@@ -164,13 +164,13 @@ export function disable() {
 export function topBarScrollAction(event) {
     // if topbar workspaceMenu (indicator) has pointer, exit
     if (menu && menu.has_pointer) {
-        return Clutter.EVENT_STOP;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     // same check for gnome pill
     const pill = Main.panel?.statusArea?.activities;
     if (pill && pill.has_pointer) {
-        return Clutter.EVENT_STOP;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     let direction = event.get_scroll_direction();
@@ -195,7 +195,7 @@ export function topBarScrollAction(event) {
         }
     }
 
-    return Clutter.EVENT_STOP;
+    return Clutter.EVENT_PROPAGATE;
 }
 
 export function showWorkspaceMenu(show = false) {
