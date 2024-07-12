@@ -467,6 +467,7 @@ class SettingsWidget {
         // booleanSetState('show-workspace-indicator');
         percentValueChanged('maximize-width-percent', 'maximize-width-percent');
         booleanStateChanged('maximize-within-tiling');
+        booleanStateChanged('topbar-mouse-scroll-enable');
 
         // About
         // build version information

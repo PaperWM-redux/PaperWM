@@ -2043,7 +2043,43 @@
                         </child>
                       </object>
                     </child>
-
+                    <child>
+                      <object class="GtkListBoxRow">
+                        <property name="activatable">False</property>
+                        <property name="focusable">False</property>
+                        <child>
+                          <object class="GtkGrid">
+                            <property name="focusable">False</property>
+                            <property name="margin_start">12</property>
+                            <property name="margin_end">12</property>
+                            <property name="margin_top">6</property>
+                            <property name="margin_bottom">6</property>
+                            <property name="column_spacing">32</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="focusable">False</property>
+                                <property name="tooltip_text" translatable="yes">Enables mouse scrolling on Top Bar to switch window (left/right)</property>
+                                <property name="hexpand">1</property>
+                                <property name="label" translatable="yes">Mouse scrolling on Top Bar switches window (left/right)</property>
+                                <property name="xalign">0</property>
+                                <layout>
+                                  <property name="column">0</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkSwitch" id="topbar-mouse-scroll-enable">
+                                <layout>
+                                  <property name="column">1</property>
+                                  <property name="row">0</property>
+                                </layout>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                     <child>
                       <object class="GtkListBoxRow">
                         <property name="activatable">False</property>

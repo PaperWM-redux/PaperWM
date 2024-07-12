@@ -693,6 +693,11 @@
         <summary>Show the open window position icon</summary>
     </key>
 
+    <key type="b" name="topbar-mouse-scroll-enable">
+      <default>true</default>
+      <summary>Enables mouse scrolling on topbar to switch window (left/right)</summary>
+    </key>
+
     <key type="d" name="animation-time">
         <default>0.25</default>
         <summary>Duration of animations in seconds</summary>

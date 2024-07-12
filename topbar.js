@@ -162,6 +162,10 @@ export function disable() {
  * @returns
  */
 export function topBarScrollAction(event) {
+    if (!Settings.prefs.topbar_mouse_scroll_enable) {
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     // if topbar workspaceMenu (indicator) has pointer, exit
     if (menu && menu.has_pointer) {
         return Clutter.EVENT_PROPAGATE;

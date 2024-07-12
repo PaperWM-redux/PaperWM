@@ -59,6 +59,7 @@ export function enable(extension) {
         'show-window-position-bar',
         'show-focus-mode-icon',
         'show-open-position-icon',
+        'topbar-mouse-scroll-enable',
         'disable-topbar-styling',
         'default-focus-mode',
         'gesture-enabled',

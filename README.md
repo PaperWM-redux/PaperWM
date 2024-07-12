@@ -339,7 +339,7 @@ PaperWM provides an extension settings UI to modify many of PaperWM's more preva
 You can also use `dconf-editor` to view and modify all PaperWM user settings.  You can view all settings by executing the following command from a terminal:
 
 ```shell
-GSETTINGS_SCHEMA_DIR=$HOME/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/schemas dconf-editor /org/gnome/shell/extensions/paperwm/
+GSETTINGS_SCHEMA_DIR=::$HOME/.local/share/gnome-shell/extensions/paperwm@paperwm.github.com/schemas dconf-editor /org/gnome/shell/extensions/paperwm/ &>/dev/null
 ```
 
 ### PaperWM user-configurable settings _not_ available in settings UI
