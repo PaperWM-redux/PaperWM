@@ -3845,7 +3845,7 @@ export function remove_handler(workspace, meta_window) {
 /**
    Handle windows entering workspaces.
 */
-export function add_handler(ws, metaWindow) {
+export function add_handler(_ws, metaWindow) {
     // Do not handle grabbed windows
     if (inGrab && inGrab.window === metaWindow)
         return;
