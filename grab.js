@@ -385,14 +385,15 @@ export class MoveGrab {
             opacity: clone?.__oldOpacity ?? 255,
         };
 
-        if (this.clone && this.dnd) {
+        if (clone && this.dnd) {
             const dndTarget = this.dndTarget;
             if (dndTarget) {
                 const space = dndTarget.space;
                 space.showSelection();
 
-                if (Scratch.isScratchWindow(metaWindow))
+                if (Scratch.isScratchWindow(metaWindow)) {
                     Scratch.unmakeScratch(metaWindow);
+                }
 
                 // Remember the global coordinates of the clone
                 let [x] = clone.get_position();
@@ -456,7 +457,7 @@ export class MoveGrab {
             Navigator.getNavigator().accept();
         }
         else if (
-            this.clone &&
+            clone &&
             this.initialSpace.indexOf(metaWindow) !== -1) {
             let space = this.initialSpace;
             space.targetX = space.cloneContainer.x;
