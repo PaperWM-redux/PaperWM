@@ -5201,7 +5201,6 @@ export function takeWindow(metaWindow, space, params) {
     const animateTake = (window, existing) => {
         navigator._moving.push(window);
         if (!existing) {
-            // backgroundGroup.add_child(metaWindow.clone);
             Utils.actor_add_child(backgroundGroup, metaWindow.clone);
         }
 
@@ -5258,7 +5257,7 @@ export function takeWindow(metaWindow, space, params) {
 
         // get the action dispatcher signal to connect to
         Navigator.getActionDispatcher(Clutter.GrabState.KEYBOARD)
-            .addKeypressCallback((modmask, keysym, _event) => {
+            .addKeypressCallback((_modmask, keysym, _event) => {
                 switch (keysym) {
                 case Clutter.KEY_space: {
                     // remove the last window you got
@@ -5304,7 +5303,10 @@ export function takeWindow(metaWindow, space, params) {
             });
 
         signals.connectOneShot(navigator, 'destroy', () => {
+            // ensure keyboard grabstate is dimissed (in case moving stopped via pointer)
+            Navigator.dismissDispatcher(Clutter.GrabState.KEYBOARD);
             navigator.showTakeHint(false);
+
             let selectedSpace = spaces.selectedSpace;
             navigator._moving.forEach(w => {
                 changeSpace(w);

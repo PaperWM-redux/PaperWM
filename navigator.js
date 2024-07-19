@@ -105,7 +105,7 @@ class ActionDispatcher {
         this.keyPressCallbacks.push(handler);
     }
 
-    show(backward, binding, mask) {
+    show(_backward, binding, mask) {
         this._modifierMask = primaryModifier(mask);
         this.navigator = getNavigator();
         Topbar.fixTopBar();
@@ -150,7 +150,7 @@ class ActionDispatcher {
             });
     }
 
-    _keyPressEvent(actor, event) {
+    _keyPressEvent(_actor, event) {
         if (!this._modifierMask) {
             this._modifierMask = primaryModifier(event.get_state());
         }
@@ -183,7 +183,7 @@ class ActionDispatcher {
         return Clutter.EVENT_STOP;
     }
 
-    _keyReleaseEvent(actor, event) {
+    _keyReleaseEvent(_actor, event) {
         if (this._destroy) {
             dismissDispatcher(Clutter.GrabState.KEYBOARD);
         }
