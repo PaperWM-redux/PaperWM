@@ -428,7 +428,7 @@ export function setupOverrides() {
         const saved = getSavedPrototype(Screenshot.ScreenshotUI, 'open');
 
         if (!Main.overview.visible) {
-            Tiling.spaces.forEach(s => {
+            Tiling?.spaces.forEach(s => {
                 s.visible.forEach(w => {
                     w.get_compositor_private()?.remove_clip();
                 });
@@ -442,7 +442,7 @@ export function setupOverrides() {
         const saved = getSavedPrototype(Screenshot.ScreenshotUI, 'close');
 
         if (!Main.overview.visible) {
-            Tiling.spaces.forEach(s => {
+            Tiling?.spaces.forEach(s => {
                 s.visible.forEach(w => {
                     s.applyClipToClone(w);
                 });

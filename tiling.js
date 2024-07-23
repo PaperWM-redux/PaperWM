@@ -1630,6 +1630,10 @@ border-radius: ${borderWidth}px;
     }
 
     updateBackground() {
+        if (!this.monitor) {
+            return;
+        }
+
         let path = this.settings.get_string('background') || Settings.prefs.default_background;
         let useDefault = gsettings.get_boolean('use-default-background');
         if (!path && useDefault) {
@@ -1872,12 +1876,16 @@ border-radius: ${borderWidth}px;
     }
 
     createBackground() {
+        const monitor = this.monitor;
+        if (!monitor) {
+            return;
+        }
+
         if (this.background) {
             this.signals.disconnect(this.background);
             this.background.destroy();
         }
 
-        let monitor = this.monitor;
 
         this.background = new Meta.BackgroundActor(
             Object.assign({
@@ -1947,6 +1955,11 @@ border-radius: ${borderWidth}px;
 
     setMonitor(monitor, animate = false, options = {}) {
         const commit = options?.commit ?? true;
+
+        // check monitor exists
+        if (!monitor) {
+            return;
+        }
 
         // Remake the background when we move monitors. The size/scale will be
         // incorrect when using fractional scaling.
