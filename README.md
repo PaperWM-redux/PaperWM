@@ -1,5 +1,7 @@
 # PaperWM (redux) #
 
+## THIS FORK HAS BEEN ARCHIVED AND IS NO LONGER SUPPORTED (OR NEEDED). Please use [PaperWM](https://github.com/paperwm/PaperWM) repo instead.
+
 ---
 
 <em>**Note:** this is a fork of [PaperWM](https://github.com/paperwm/PaperWM) that's focused on accelerating development of PaperWM and aims to continue supporting the latest Gnome release(s) by testing and implementing fixes (hopefully quickly!), and implementing new features, now and in the future.
